@@ -1001,15 +1001,15 @@ async function handleRegister() {
       user_id: data.user.id,
       name: teamname,
       emoji: emoji,
-      liga: 'bronze',
-      pts: 0, wins: 0, losses: 0,
+      liga: 'gold',
+      pts: 10, wins: 0, losses: 0,
       ort: ort || null,
       bio: '',
       deadline_missed: 0,
       no_show: 0
     });
   }
-  succEl.textContent = '✅ Registriert! Bitte E-Mail bestätigen, dann anmelden.';
+  succEl.textContent = '✅ Registriert! Ihr startet mit 10 Punkten in der Goldliga. Bitte E-Mail bestätigen, dann anmelden.';
 }
 
 async function handleLogout() {
