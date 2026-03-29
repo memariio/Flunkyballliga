@@ -390,6 +390,18 @@
   }
   .history-list { display:none; margin-top:0.9rem; }
   .history-list.open { display:block; }
+
+  .matches-dropdown { margin-top: 0.85rem; }
+  .matches-dropdown summary {
+    cursor: pointer; list-style: none;
+    padding: 0.95rem 1.1rem; border-radius: 12px;
+    background: var(--card2); border: 1px solid var(--border);
+    font-weight: 700; color: var(--white);
+  }
+  .matches-dropdown summary::-webkit-details-marker { display: none; }
+  .matches-dropdown summary::after { content: '▾'; float: right; color: var(--gray); }
+  .matches-dropdown[open] summary::after { content: '▴'; }
+  .matches-dropdown-body { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 8px; }
   .stat-alert { color: var(--orange); }
   .chat-search-wrap { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
   .chat-search-input {
@@ -563,7 +575,7 @@
     <div class="loading-spinner"><div class="spinner"></div>Lade Matches…</div>
   </div>
 
-  <div class="section-title">📋 Letzte Spiele</div>
+  <div class="section-title">📋 Letzte Matches</div>
   <div class="liga-tabs" id="liga-tabs">
     <span class="liga-tab active-tab" onclick="filterGames('alle',this)">Alle</span>
     <span class="liga-tab" onclick="filterGames('bronze',this)">🥉 Bronze</span>
@@ -652,7 +664,7 @@
     <div class="card" style="margin-bottom:1.5rem">
       <div class="section-title">📚 Matchhistory</div>
       <div class="history-toggle" onclick="toggleHistory()">
-        <span>Komplette Matchhistory anzeigen</span>
+        <span>Letzte 20 Matches anzeigen</span>
         <span id="history-toggle-icon">▾</span>
       </div>
       <div class="history-list" id="profile-history-list"></div>
@@ -1319,7 +1331,11 @@ function renderGamesList(games) {
     list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div>Noch keine Spiele eingetragen.</div>`;
     return;
   }
-  list.innerHTML = games.map(g => {
+
+  const visibleGames = games.slice(0, 6);
+  const moreGames = games.slice(6, 20);
+
+  const renderSingleGame = (g) => {
     const isMe = myTeam && (g.team_a_id === myTeam.id || g.team_b_id === myTeam.id);
     const cls = g.status === 'deadline' || g.status === 'no_show' ? 'status-red' : g.status === 'conflict' ? 'status-orange' : '';
     const label = g.label || (g.score_a !== null ? `${g.score_a} : ${g.score_b}` : '–');
@@ -1335,7 +1351,19 @@ function renderGamesList(games) {
         <div class="game-date">${formatDate(g.created_at)}</div>
       </div>
     `;
-  }).join('');
+  };
+
+  list.innerHTML = `
+    ${visibleGames.map(renderSingleGame).join('')}
+    ${moreGames.length ? `
+      <details class="matches-dropdown">
+        <summary>Weitere Matches anzeigen (${moreGames.length})</summary>
+        <div class="matches-dropdown-body">
+          ${moreGames.map(renderSingleGame).join('')}
+        </div>
+      </details>
+    ` : ''}
+  `;
 }
 
 async function loadLeaderboard(filter) {
@@ -1422,7 +1450,7 @@ async function loadProfile(team) {
     .select('*, team_a:team_a_id(name), team_b:team_b_id(name)')
     .or(`team_a_id.eq.${team.id},team_b_id.eq.${team.id}`)
     .order('created_at', { ascending: false })
-    .limit(10);
+    .limit(20);
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
