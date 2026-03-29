@@ -1698,8 +1698,8 @@ async function applyConflict(match) {
     label: 'Ergebniskonflikt',
     status: 'conflict'
   });
-  await supabase.from('teams').update({ pts: Math.max(0, (match.team_a?.pts || 0) - 1) }).eq('id', match.team_a_id);
-  await supabase.from('teams').update({ pts: Math.max(0, (match.team_b?.pts || 0) - 1) }).eq('id', match.team_b_id);
+  await supabase.from('teams').update({ pts: (match.team_a?.pts || 0) - 1 }).eq('id', match.team_a_id);
+  await supabase.from('teams').update({ pts: (match.team_b?.pts || 0) - 1 }).eq('id', match.team_b_id);
   await finishMatchCleanup(match, '⚠️ Ergebniskonflikt: beide Teams erhalten −1 Punkt.');
 }
 
@@ -1730,7 +1730,7 @@ async function applyResolvedOutcome(match, winnerSide, label, status = 'normal')
 
   if (winnerIsA) {
     const loserUpdate = {
-      pts: Math.max(0, teamBPoints - 3),
+      pts: teamBPoints - 3,
       losses: teamBLosses + 1
     };
     if (status === 'no_show') loserUpdate.no_show = teamBNoShow + 1;
@@ -1742,7 +1742,7 @@ async function applyResolvedOutcome(match, winnerSide, label, status = 'normal')
     await supabase.from('teams').update(loserUpdate).eq('id', match.team_b_id);
   } else {
     const loserUpdate = {
-      pts: Math.max(0, teamAPoints - 3),
+      pts: teamAPoints - 3,
       losses: teamALosses + 1
     };
     if (status === 'no_show') loserUpdate.no_show = teamANoShow + 1;
