@@ -525,7 +525,7 @@
     </div>
     <!-- shown when logged out -->
     <div id="nav-loggedout" style="display:flex;align-items:center;gap:0.5rem">
-      <button class="btn-auth" onclick="openAuthModal()">🔐 Anmelden / Registrieren</button>
+      <button class="btn-auth" onclick="openAuthModal()">🔐 Login</button>
     </div>
   </div>
 </nav>
@@ -580,8 +580,8 @@
 <!-- ── LEADERBOARD PAGE ── -->
 <div class="page" id="page-leaderboard">
   <div style="margin-bottom:1.5rem">
-    <div style="font-size:1.4rem;font-weight:800;color:var(--white)">🏆 Rangliste</div>
-    <div style="font-size:0.85rem;color:var(--gray);margin-top:4px">Nach Ligen · innerhalb nach Punkten</div>
+    <div style="font-size:1.4rem;font-weight:800;color:var(--white)">🏆 Board</div>
+    <div style="font-size:0.85rem;color:var(--gray);margin-top:4px"></div>
   </div>
   <div class="lb-filter" id="lb-filter">
     <span class="liga-tab active-tab" onclick="filterLB('alle',this)">Alle Ligen</span>
@@ -599,7 +599,7 @@
   <div class="login-required-card" id="profile-login-required">
     <div class="login-required-title">🔐 Melde dich an</div>
     <div class="login-required-sub">Melde dich an, um dein Profil zu sehen und zu verwalten.</div>
-    <button class="btn-primary" onclick="openAuthModal()">Anmelden / Registrieren</button>
+    <button class="btn-primary" onclick="openAuthModal()">Login</button>
   </div>
   <div id="profile-content" class="hidden-force">
     <div class="profile-header">
@@ -665,7 +665,7 @@
   <div class="login-required-card" id="chat-login-required">
     <div class="login-required-title">🔐 Melde dich an</div>
     <div class="login-required-sub">Melde dich an, um mit anderen Teams zu chatten.</div>
-    <button class="btn-primary" onclick="openAuthModal()">Anmelden / Registrieren</button>
+    <button class="btn-primary" onclick="openAuthModal()">Login</button>
   </div>
   <div class="chat-layout hidden-force" id="chat-content">
     <div class="chat-sidebar">
