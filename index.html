@@ -48,7 +48,7 @@
   /* ── NAV ── */
 
 .logo-img {
-  height: 40px;
+  height: 75px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
@@ -586,7 +586,7 @@
     </div>
   </div>
 
-  <div class="section-title">🟢 Jetzt Bereit <span style="margin-left:4px;color:var(--green)" id="ready-count">0 Teams</span></div>
+  <div class="section-title"> Jetzt Bereit <span style="margin-left:4px;color:var(--green)" id="ready-count">0 Teams</span></div>
   <div class="ready-search-wrap">
     <input class="chat-search-input" id="ready-city-search" type="text" placeholder="Nach Stadt suchen..." oninput="renderReadyTeams()" />
   </div>
@@ -599,7 +599,7 @@
     <div class="loading-spinner"><div class="spinner"></div>Lade Matches…</div>
   </div>
 
-  <div class="section-title" style="margin-top:0.65rem">📋 Letzte Matches</div>
+  <div class="section-title" style="margin-top:0.65rem"> Letzte Matches</div>
   <div class="liga-tabs" id="liga-tabs">
     <span class="liga-tab active-tab" onclick="filterGames('alle',this)">Alle</span>
     <span class="liga-tab" onclick="filterGames('bronze',this)">🥉 Bronze</span>
@@ -860,7 +860,7 @@
 <!-- Ready Modal -->
 <div class="modal-bg hidden" id="modal-ready">
   <div class="modal">
-    <div class="modal-title">🟢 Bereit stellen</div>
+    <div class="modal-title"> Bereit stellen</div>
     <div class="modal-body">
       <div class="form-row">
         <label class="form-label">Vorgeschlagene Uhrzeit (optional)</label>
@@ -1271,7 +1271,7 @@ async function loadReadyTeams() {
   if (error || !data || data.length === 0) {
     const count = document.getElementById('ready-count');
     if (count) count.textContent = '0 Teams';
-    grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🟡</div>Noch keine Teams bereit.<br><small>Melde dich an und stelle dich bereit!</small></div>`;
+    grid.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo"><img src="flascheweiß.png" class="empty-logo"><div>Noch keine Teams bereit.</div><br><small>Melde dich an und stelle dich bereit!</small></div>`;
     return;
   }
 
@@ -1637,7 +1637,7 @@ async function confirmReady() {
   closeModal('ready');
   updateReadyUI();
   loadReadyTeams();
-  showToast(`🟢 Du bist bereit mit ${spieler} Spielern!`);
+  showToast(` Du bist bereit mit ${spieler} Spielern!`);
 }
 
 // ─── CHALLENGE ────────────────────────────────────────────────────────────────
