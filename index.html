@@ -50,7 +50,10 @@
 .logo-img {
   height: 75px;
   width: auto;
+  display: block;
   object-fit: contain;
+  object-position: center;
+  transform: translateY(4px);
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
 }
 
@@ -59,7 +62,7 @@
 }
 
 @media (max-width: 600px) {
-  .logo-img { height: 22px; }
+  .logo-img { height: 58px; transform: translateY(3px); }
 }
 
   nav {
@@ -68,10 +71,11 @@
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border2);
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 1.5rem; height: 60px;
+    padding: 0.55rem 1.5rem 0.8rem; min-height: 96px;
   }
   .nav-logo {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding-top: 6px;
     font-family: 'Space Mono', monospace; font-weight: 700;
     font-size: 1.1rem; letter-spacing: 0.04em; color: var(--white);
   }
@@ -387,7 +391,7 @@
 
   
 .empty-logo {
-  height: 55px;
+  height: 150px;
   margin-bottom: 10px;
   opacity: 0.95;
   filter: none;
@@ -509,7 +513,7 @@
   }
 
   @media (max-width: 600px) {
-    nav { height: auto; min-height: 60px; padding: 0.65rem 0.75rem; gap: 0.65rem; flex-wrap: wrap; }
+    nav { height: auto; min-height: 92px; padding: 0.8rem 0.75rem 0.95rem; gap: 0.65rem; flex-wrap: wrap; }
     .nav-links { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
     .nav-links::-webkit-scrollbar { display: none; }
     .nav-link { flex: 0 0 auto; white-space: nowrap; padding: 7px 10px; font-size: 0.74rem; }
@@ -1271,7 +1275,7 @@ async function loadReadyTeams() {
   if (error || !data || data.length === 0) {
     const count = document.getElementById('ready-count');
     if (count) count.textContent = '0 Teams';
-    grid.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo"><img src="flascheweiß.png" class="empty-logo"><div>Noch keine Teams bereit.</div><br><small>Melde dich an und stelle dich bereit!</small></div>`;
+    grid.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo"><div>Noch keine Teams bereit.</div><br><small>Melde dich an und stelle dich bereit!</small></div>`;
     return;
   }
 
