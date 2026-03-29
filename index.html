@@ -948,7 +948,51 @@ function showToast(msg) {
   clearTimeout(t._to);
   t._to = setTimeout(() => t.classList.remove('show'), 3200);
 }
-function openModal(name) { document.getElementById('modal-'+name).classList.remove('hidden'); }
+function getMyMatchResult() {
+  if (!activeMatch || !myTeam) return null;
+  return myTeam.id === activeMatch.team_a_id ? activeMatch.team_a_result : activeMatch.team_b_result;
+}
+function updateResultSelectionUI(selectedResult) {
+  const configs = [
+    { id: 'result-self-btn', type: 'normal' },
+    { id: 'result-opp-btn', type: 'normal' },
+    { id: 'result-no-show-btn', type: 'normal' },
+    { id: 'result-surrender-btn', type: 'danger' }
+  ];
+  const selectedMap = {
+    self_win: 'result-self-btn',
+    opp_win: 'result-opp-btn',
+    opp_no_show: 'result-no-show-btn',
+    surrender: 'result-surrender-btn'
+  };
+
+  configs.forEach(({ id, type }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const isSelected = selectedMap[selectedResult] === id;
+    btn.classList.remove('btn-primary', 'btn-secondary');
+    if (isSelected) {
+      btn.classList.add('btn-primary');
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.background = '';
+    } else if (type === 'danger') {
+      btn.classList.add('btn-secondary');
+      btn.style.borderColor = '#ef444466';
+      btn.style.color = '#fecaca';
+      btn.style.background = '#7f1d1d';
+    } else {
+      btn.classList.add('btn-secondary');
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.background = '';
+    }
+  });
+}
+function openModal(name) {
+  if (name === 'confirm') updateResultSelectionUI(getMyMatchResult());
+  document.getElementById('modal-'+name).classList.remove('hidden');
+}
 function closeModal(name) { document.getElementById('modal-'+name).classList.add('hidden'); }
 
 // ─── AUTH MODAL ───────────────────────────────────────────────────────────────
@@ -1682,6 +1726,7 @@ async function submitMatchResult(result) {
 
   activeMatch = updated;
   resultSubmitted = true;
+  updateResultSelectionUI(result);
   refreshActiveMatchUI();
 
   if (result === 'surrender') {
