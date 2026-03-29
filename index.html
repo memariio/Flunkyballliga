@@ -48,7 +48,7 @@
   /* ── NAV ── */
 
 .logo-img {
-  height: 28px;
+  height: 40px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
@@ -385,7 +385,15 @@
   }
   .toast.show { transform: translateY(0); opacity: 1; }
 
-  /* ── MISC ── */
+  
+.empty-logo {
+  height: 55px;
+  margin-bottom: 10px;
+  opacity: 0.95;
+  filter: none;
+}
+
+/* ── MISC ── */
   .flex-between { display: flex; align-items: center; justify-content: space-between; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
@@ -1375,7 +1383,7 @@ async function loadGames(filter) {
 function renderGamesList(games) {
   const list = document.getElementById('game-list');
   if (!games || games.length === 0) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div>Noch keine Spiele eingetragen.</div>`;
+    list.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo">Noch keine Spiele eingetragen.</div>`;
     return;
   }
 
