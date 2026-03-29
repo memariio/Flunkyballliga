@@ -885,13 +885,7 @@
 // ─── SUPABASE INIT ────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://trviggxajixuorjkbjep.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRydmlnZ3hhaml4dW9yamtiamVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTc0NzIsImV4cCI6MjA5MDI3MzQ3Mn0.bMhwydIUyGmRpNlsjAweq8aJgkziLDOhgbcJ6dHoXSY';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
-  }
-});
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentUser = null;       // supabase auth user
@@ -911,7 +905,6 @@ let activeChatTeamId = null;
 let activeChatTeam = null;    // teams row
 let chatSubscription = null;
 let pendingChallengeTarget = null; // teams row
-let challengedTeamIds = new Set();
 let pendingNotifId = null;
 let pendingExtendMatchId = null;
 let pendingChallengeMatchId = null;
@@ -1001,77 +994,42 @@ async function handleRegister() {
       user_id: data.user.id,
       name: teamname,
       emoji: emoji,
-      liga: 'gold',
-      pts: 10, wins: 0, losses: 0,
+      liga: 'bronze',
+      pts: 0, wins: 0, losses: 0,
       ort: ort || null,
       bio: '',
       deadline_missed: 0,
       no_show: 0
     });
   }
-  succEl.textContent = '✅ Registriert! Ihr startet mit 10 Punkten in der Goldliga. Bitte E-Mail bestätigen, dann anmelden.';
+  succEl.textContent = '✅ Registriert! Bitte E-Mail bestätigen, dann anmelden.';
 }
 
 async function handleLogout() {
-  try {
-    await supabase.auth.signOut({ scope: 'local' });
-  } catch (error) {
-    console.error('Logout error:', error);
-  } finally {
-    currentUser = null;
-    myTeam = null;
-    activeMatch = null;
-    isReady = false;
-    updateNavAuth();
-    updateAuthViews();
-    await loadAllData();
-  }
+  await supabase.auth.signOut();
 }
 
 // ─── SESSION ──────────────────────────────────────────────────────────────────
-let authHydrating = false;
-
-async function syncAuthState(session) {
-  authHydrating = true;
-  try {
-    currentUser = session?.user || null;
-    if (currentUser) {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Team load error:', error);
-      }
-
-      myTeam = data || null;
-      if (myTeam) {
-        await loadActiveMatch();
-        await syncReadyState();
-      } else {
-        activeMatch = null;
-        isReady = false;
-      }
-    } else {
+supabase.auth.onAuthStateChange(async (event, session) => {
+  currentUser = session?.user || null;
+  if (currentUser) {
+    // load team for this user
+    const { data } = await supabase.from('teams').select('*').eq('user_id', currentUser.id).single();
+    myTeam = data || null;
+    if (!myTeam) {
+      // User registered but team not yet created (email confirm flow)
       myTeam = null;
-      activeMatch = null;
-      isReady = false;
-      challengedTeamIds = new Set();
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     }
-
-    updateNavAuth();
-    updateAuthViews();
-    await loadAllData();
-  } finally {
-    authHydrating = false;
+    await loadActiveMatch();
+  } else {
+    myTeam = null;
+    activeMatch = null;
+    isReady = false;
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   }
-}
-
-supabase.auth.onAuthStateChange((event, session) => {
-  Promise.resolve().then(() => syncAuthState(session));
+  updateNavAuth();
+  updateAuthViews();
+  loadAllData();
 });
 
 function updateNavAuth() {
@@ -1097,33 +1055,9 @@ function updateAuthViews() {
   if (loggedIn) loadProfile(myTeam);
 }
 
-async function syncReadyState() {
-  if (!myTeam) {
-    isReady = false;
-    updateReadyUI();
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('ready_teams')
-    .select('id')
-    .eq('team_id', myTeam.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Ready state load error:', error);
-    isReady = false;
-  } else {
-    isReady = !!data;
-  }
-
-  updateReadyUI();
-}
-
 // ─── DATA LOADING ─────────────────────────────────────────────────────────────
 async function loadAllData() {
   await Promise.allSettled([
-    loadOutgoingPendingChallenges(),
     loadReadyTeams(),
     loadActiveMatches(),
     loadGames(currentLiga),
@@ -1131,25 +1065,6 @@ async function loadAllData() {
     loadNotifications()
   ]);
   if (currentPage === 'chat' && currentUser && myTeam) renderChatContacts();
-}
-
-async function loadOutgoingPendingChallenges() {
-  if (!myTeam) {
-    challengedTeamIds = new Set();
-    return;
-  }
-  const { data, error } = await supabase
-    .from('matches')
-    .select('team_b_id')
-    .eq('team_a_id', myTeam.id)
-    .eq('status', 'pending_challenge');
-
-  if (error) {
-    console.error('Outgoing pending challenges load error:', error);
-    return;
-  }
-
-  challengedTeamIds = new Set((data || []).map(row => row.team_b_id).filter(Boolean));
 }
 
 async function loadReadyTeams() {
@@ -1175,8 +1090,7 @@ async function loadReadyTeams() {
   grid.innerHTML = teams.map(r => {
     const t = r.teams;
     const isMe = myTeam && t.id === myTeam.id;
-    const alreadyChallenged = challengedTeamIds.has(t.id);
-    const canChallenge = !!(myTeam && !isMe && !activeMatch && t.liga === myTeam.liga && !alreadyChallenged);
+    const canChallenge = !!(myTeam && !isMe && !activeMatch && t.liga === myTeam.liga);
     return `
       <div class="ready-card ${isMe ? 'my-team' : ''} ${!isMe && !canChallenge ? 'locked' : ''}">
         <div class="team-avatar">${t.emoji || '🍺'}</div>
@@ -1193,7 +1107,7 @@ async function loadReadyTeams() {
           </div>
         </div>
         ${!isMe ? '<div class="ready-dot"></div>' : ''}
-        ${!isMe ? `<button class="challenge-btn" ${canChallenge ? `onclick="openChallenge('${t.id}')"` : 'disabled style="opacity:0.45;cursor:not-allowed"'}>${alreadyChallenged ? 'Herausgefordert!' : (canChallenge ? 'Herausfordern' : (myTeam ? 'Gesperrt' : 'Login'))}</button>` : ''}
+        ${!isMe ? `<button class="challenge-btn" ${canChallenge ? `onclick="openChallenge('${t.id}')"` : 'disabled style="opacity:0.45;cursor:not-allowed"'}>${canChallenge ? 'Herausfordern' : (myTeam ? 'Gesperrt' : 'Login')}</button>` : ''}
       </div>
     `;
   }).join('') || `<div class="empty-state"><div class="empty-state-icon">🔍</div>Keine Teams für diese Stadt gefunden.</div>`;
@@ -1309,7 +1223,7 @@ async function loadActiveMatch() {
     .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
     .or(`team_a_id.eq.${myTeam.id},team_b_id.eq.${myTeam.id}`)
     .eq('status', 'active')
-    .maybeSingle();
+    .single();
   activeMatch = data || null;
   if (activeMatch) {
     timerSeconds = activeMatch.timer_seconds || 0;
@@ -1382,7 +1296,7 @@ function renderGameRow(g, teamId) {
 }
 
 async function openTeamProfile(teamId) {
-  const { data: team } = await supabase.from('teams').select('*').eq('id', teamId).maybeSingle();
+  const { data: team } = await supabase.from('teams').select('*').eq('id', teamId).single();
   if (!team) return;
   currentProfileTeam = team;
   currentProfileTeamId = teamId;
@@ -1466,8 +1380,7 @@ async function toggleReady() {
     openModal('ready');
   } else {
     // remove from ready_teams
-    const { error } = await supabase.from('ready_teams').delete().eq('team_id', myTeam.id);
-    if (error) { showToast('❌ Bereit-Status konnte nicht entfernt werden.'); return; }
+    await supabase.from('ready_teams').delete().eq('team_id', myTeam.id);
     isReady = false;
     updateReadyUI();
     loadReadyTeams();
@@ -1481,8 +1394,7 @@ async function confirmReady() {
   const ort = document.getElementById('ready-place').value.trim() || null;
   const spieler = parseInt(document.getElementById('ready-team-size').value) || 4;
   // upsert
-  const { error } = await supabase.from('ready_teams').upsert({ team_id: myTeam.id, uhrzeit, ort, spieler }, { onConflict: 'team_id' });
-  if (error) { showToast('❌ Bereit-Status konnte nicht gespeichert werden.'); return; }
+  await supabase.from('ready_teams').upsert({ team_id: myTeam.id, uhrzeit, ort, spieler }, { onConflict: 'team_id' });
   isReady = true;
   closeModal('ready');
   updateReadyUI();
@@ -1493,10 +1405,10 @@ async function confirmReady() {
 // ─── CHALLENGE ────────────────────────────────────────────────────────────────
 async function openChallenge(targetTeamId) {
   if (!currentUser || !myTeam) { openAuthModal(); return; }
-  const { data: t } = await supabase.from('teams').select('*').eq('id', targetTeamId).maybeSingle();
+  const { data: t } = await supabase.from('teams').select('*').eq('id', targetTeamId).single();
   if (!t) return;
   pendingChallengeTarget = t;
-  const { data: rt } = await supabase.from('ready_teams').select('*').eq('team_id', t.id).maybeSingle();
+  const { data: rt } = await supabase.from('ready_teams').select('*').eq('team_id', t.id).single();
   document.getElementById('modal-challenge-title').textContent = `⚔️ ${t.name} herausfordern`;
   document.getElementById('modal-challenge-body').innerHTML = `
     <p><strong style="color:var(--white)">${t.name}</strong> ist bereit für ein Spiel.</p>
@@ -1513,11 +1425,6 @@ async function openChallenge(targetTeamId) {
 
 async function sendChallenge() {
   if (!myTeam || !pendingChallengeTarget) return;
-  if (challengedTeamIds.has(pendingChallengeTarget.id)) {
-    closeModal('challenge');
-    showToast('⚠️ Dieses Team wurde bereits herausgefordert.');
-    return;
-  }
   closeModal('challenge');
   // create pending match
   const { data: match, error } = await supabase.from('matches').insert({
@@ -1537,59 +1444,20 @@ async function sendChallenge() {
     related_id: match.id,
     read: false
   });
-  challengedTeamIds.add(pendingChallengeTarget.id);
-  loadReadyTeams();
   showToast(`📨 Herausforderung an ${pendingChallengeTarget.name} gesendet!`);
 }
 
 async function respondChallenge(accepted) {
   closeModal('incoming-challenge');
   if (!pendingChallengeMatchId) return;
-
-  const { data: match } = await supabase
-    .from('matches')
-    .select('*, team_a:team_a_id(user_id,name), team_b:team_b_id(name)')
-    .eq('id', pendingChallengeMatchId)
-    .maybeSingle();
-
-  if (!match) {
-    if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
-    pendingChallengeMatchId = null; pendingNotifId = null;
-    loadNotifications();
-    return;
-  }
-
   if (accepted) {
     await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, created_at: new Date().toISOString() }).eq('id', pendingChallengeMatchId);
-    await supabase.from('ready_teams').delete().in('team_id', [match.team_a_id, match.team_b_id]);
-    isReady = false;
-    updateReadyUI();
-    if (match.team_a?.user_id) {
-      await supabase.from('notifications').insert({
-        user_id: match.team_a.user_id,
-        type: 'challenge_response',
-        title: `✅ ${match.team_b?.name || 'Das Team'} hat angenommen`,
-        sub: 'Eure Herausforderung wurde angenommen. Das Match ist jetzt aktiv.',
-        related_id: pendingChallengeMatchId,
-        read: false
-      });
-    }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
     await loadActiveMatch();
     loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
-    if (match.team_a?.user_id) {
-      await supabase.from('notifications').insert({
-        user_id: match.team_a.user_id,
-        type: 'challenge_response',
-        title: `❌ ${match.team_b?.name || 'Das Team'} hat abgelehnt`,
-        sub: 'Eure Herausforderung wurde abgelehnt.',
-        related_id: pendingChallengeMatchId,
-        read: false
-      });
-    }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('❌ Herausforderung abgelehnt.');
     loadNotifications();
@@ -1634,8 +1502,10 @@ function startTimer() {
 async function submitMatchResult(result) {
   closeModal('confirm');
   if (!activeMatch || !myTeam) return;
+
   const isTeamA = myTeam.id === activeMatch.team_a_id;
   const field = isTeamA ? 'team_a_result' : 'team_b_result';
+
   const { data: updated, error } = await supabase
     .from('matches')
     .update({ [field]: result })
@@ -1644,6 +1514,7 @@ async function submitMatchResult(result) {
     .single();
 
   if (error) {
+    console.error('submitMatchResult error:', error);
     showToast('❌ Fehler beim Speichern.');
     return;
   }
@@ -1653,148 +1524,71 @@ async function submitMatchResult(result) {
   refreshActiveMatchUI();
 
   if (result === 'surrender') {
-    showToast('🏳️ Du hast aufgegeben. Match wird sofort beendet.');
-  } else if (result === 'opp_no_show') {
-    showToast('📨 Eingetragen. Das Match endet, sobald der Gegner auf „Aufgeben“ drückt.');
+    showToast('🏳️ Aufgabe eingetragen. Match wird beendet…');
   } else {
-    showToast('📨 Ergebnis eingetragen. Warte auf Bestätigung des Gegners.');
+    showToast('📨 Ergebnis eingetragen.');
   }
 
   await evaluateMatch(updated);
 }
 
-async function finishMatchCleanup(match, toastMessage) {
-  await supabase.from('ready_teams').delete().eq('team_id', match.team_a_id);
-  await supabase.from('ready_teams').delete().eq('team_id', match.team_b_id);
+async function evaluateMatch(match) {
+  const { data, error } = await supabase.rpc('resolve_match_outcome', {
+    p_match_id: match.id
+  });
 
-  showToast(toastMessage);
-  activeMatch = null;
+  if (error) {
+    console.error('resolve_match_outcome error:', error);
+    showToast('❌ Match konnte nicht finalisiert werden. Bitte SQL-Fix im Supabase Editor ausführen.');
+    return;
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (!result || !result.resolved) {
+    if (match.team_a_result && match.team_b_result) {
+      showToast(result?.message || '📨 Ergebnis gespeichert.');
+    } else if (match.team_a_result === 'surrender' || match.team_b_result === 'surrender') {
+      showToast(result?.message || '🏳️ Aufgabe gespeichert.');
+    } else {
+      showToast('📨 Ergebnis eingetragen. Warte auf den Gegner.');
+    }
+    return;
+  }
+
+  const { data: freshMatch } = await supabase
+    .from('matches')
+    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+    .eq('id', match.id)
+    .maybeSingle();
+
+  activeMatch = freshMatch?.status === 'finished' ? null : (freshMatch || null);
   isReady = false;
+
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+
   refreshActiveMatchUI();
-  updateReadyUI();
 
   if (myTeam) {
-    const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).single();
-    myTeam = data;
-    updateNavAuth();
-    if (document.getElementById('page-profile')?.classList.contains('active')) {
-      loadProfile(myTeam);
+    const { data: freshTeam } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('id', myTeam.id)
+      .single();
+
+    if (freshTeam) {
+      myTeam = freshTeam;
+      updateNavAuth();
+      if (currentProfileTeamId === myTeam.id) {
+        await loadProfile(myTeam);
+      }
     }
   }
 
+  showToast(result.message || '✅ Match beendet.');
   await loadAllData();
-}
-
-async function applyConflict(match) {
-  await supabase.from('matches').update({ status: 'finished' }).eq('id', match.id);
-  await supabase.from('games').insert({
-    team_a_id: match.team_a_id,
-    team_b_id: match.team_b_id,
-    liga: match.liga,
-    label: 'Ergebniskonflikt',
-    status: 'conflict'
-  });
-  await supabase.from('teams').update({ pts: (match.team_a?.pts || 0) - 1 }).eq('id', match.team_a_id);
-  await supabase.from('teams').update({ pts: (match.team_b?.pts || 0) - 1 }).eq('id', match.team_b_id);
-  await finishMatchCleanup(match, '⚠️ Ergebniskonflikt: beide Teams erhalten −1 Punkt.');
-}
-
-async function applyResolvedOutcome(match, winnerSide, label, status = 'normal') {
-  const teamAPoints = match.team_a?.pts || 0;
-  const teamBPoints = match.team_b?.pts || 0;
-  const teamAWins = match.team_a?.wins || 0;
-  const teamBWins = match.team_b?.wins || 0;
-  const teamALosses = match.team_a?.losses || 0;
-  const teamBLosses = match.team_b?.losses || 0;
-  const teamANoShow = match.team_a?.no_show || 0;
-  const teamBNoShow = match.team_b?.no_show || 0;
-
-  const winnerIsA = winnerSide === 'A';
-  const scoreA = winnerIsA ? 1 : 0;
-  const scoreB = winnerIsA ? 0 : 1;
-
-  await supabase.from('matches').update({ status: 'finished' }).eq('id', match.id);
-  await supabase.from('games').insert({
-    team_a_id: match.team_a_id,
-    team_b_id: match.team_b_id,
-    liga: match.liga,
-    score_a: scoreA,
-    score_b: scoreB,
-    label,
-    status
-  });
-
-  if (winnerIsA) {
-    const loserUpdate = {
-      pts: teamBPoints - 3,
-      losses: teamBLosses + 1
-    };
-    if (status === 'no_show') loserUpdate.no_show = teamBNoShow + 1;
-
-    await supabase.from('teams').update({
-      pts: teamAPoints + 3,
-      wins: teamAWins + 1
-    }).eq('id', match.team_a_id);
-    await supabase.from('teams').update(loserUpdate).eq('id', match.team_b_id);
-  } else {
-    const loserUpdate = {
-      pts: teamAPoints - 3,
-      losses: teamALosses + 1
-    };
-    if (status === 'no_show') loserUpdate.no_show = teamANoShow + 1;
-
-    await supabase.from('teams').update({
-      pts: teamBPoints + 3,
-      wins: teamBWins + 1
-    }).eq('id', match.team_b_id);
-    await supabase.from('teams').update(loserUpdate).eq('id', match.team_a_id);
-  }
-
-  await finishMatchCleanup(match, '✅ Ergebnis bestätigt! Match beendet.');
-}
-
-async function evaluateMatch(match) {
-  const a = match.team_a_result;
-  const b = match.team_b_result;
-
-  if (!a && !b) return;
-
-  if (a === 'surrender') {
-    await applyResolvedOutcome(match, 'B', 'Aufgegeben', 'no_show');
-    return;
-  }
-  if (b === 'surrender') {
-    await applyResolvedOutcome(match, 'A', 'Aufgegeben', 'no_show');
-    return;
-  }
-
-  if (!a || !b) return;
-
-  if (a === 'self_win' && b === 'opp_win') {
-    await applyResolvedOutcome(match, 'A', '1 : 0', 'normal');
-    return;
-  }
-
-  if (a === 'opp_win' && b === 'self_win') {
-    await applyResolvedOutcome(match, 'B', '0 : 1', 'normal');
-    return;
-  }
-
-  if (a === 'opp_no_show' && b === 'surrender') {
-    await applyResolvedOutcome(match, 'A', 'Gegner nicht angetreten', 'no_show');
-    return;
-  }
-
-  if (a === 'surrender' && b === 'opp_no_show') {
-    await applyResolvedOutcome(match, 'B', 'Gegner nicht angetreten', 'no_show');
-    return;
-  }
-
-  await applyConflict(match);
 }
 
 async function requestExtend() {
@@ -1884,17 +1678,6 @@ async function openNotification(id, type, relatedId) {
     if (relatedId) {
       const { data: t } = await supabase.from('teams').select('*').eq('id', relatedId).single();
       if (t) openChatForTeam(t);
-    }
-  } else if (type === 'challenge_response') {
-    const { data: notif } = await supabase.from('notifications').select('*').eq('id', id).maybeSingle();
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    loadNotifications();
-    if (notif?.title || notif?.sub) showToast(notif?.title || notif?.sub || 'ℹ️ Update zur Herausforderung');
-    if (relatedId) {
-      await loadOutgoingPendingChallenges();
-      loadReadyTeams();
-      await loadActiveMatches();
-      if (myTeam) await loadActiveMatch();
     }
   }
 }
@@ -2035,22 +1818,10 @@ function filterLB(liga, el) {
   loadLeaderboard(liga);
 }
 
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState !== 'visible' || authHydrating) return;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    await syncAuthState(session || null);
-  } catch (error) {
-    console.error('Visibility auth sync failed:', error);
-  }
-});
-
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
 supabase.channel('public-data')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, () => loadReadyTeams())
   .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
-    await loadOutgoingPendingChallenges();
-    loadReadyTeams();
     await loadActiveMatches();
     if (myTeam) await loadActiveMatch();
   })
@@ -2079,12 +1850,24 @@ let _appInitialized = false;
 (async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    await syncAuthState(session || null);
+    if (session?.user) {
+      currentUser = session.user;
+      try {
+        const { data } = await supabase.from('teams').select('*').eq('user_id', currentUser.id).single();
+        myTeam = data || null;
+      } catch(e) { myTeam = null; }
+      if (myTeam) {
+        try { await loadActiveMatch(); } catch(e) {}
+      }
+    }
   } catch(e) {
     console.error('Session init error:', e);
-    await syncAuthState(null);
   }
+  updateNavAuth();
+  updateAuthViews();
   _appInitialized = true;
+  // Daten nur laden wenn onAuthStateChange noch nicht gefeuert hat
+  loadAllData();
 })();
 
 // ─── EXPOSE ALL FUNCTIONS GLOBALLY ────────────────────────────────────────────
