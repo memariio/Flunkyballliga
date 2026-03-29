@@ -1689,37 +1689,71 @@ async function finishMatchCleanup(match, toastMessage) {
   await loadAllData();
 }
 
-async function resolveMatchOutcomeViaRpc(match, winnerSide, label, status) {
-  const { error } = await supabase.rpc('resolve_match_outcome', {
-    p_match_id: match.id,
-    p_winner_side: winnerSide,
-    p_label: label,
-    p_status: status
-  });
-
-  if (error) {
-    console.error('resolve_match_outcome rpc error:', error);
-    const msg = String(error?.message || '');
-    if (msg.includes('Could not find the function') || msg.includes('resolve_match_outcome')) {
-      showToast('❌ SQL-Fix fehlt noch. Bitte die neue SQL-Funktion in Supabase ausführen.');
-    } else {
-      showToast('❌ Fehler bei der Punktevergabe: ' + msg);
-    }
-    return false;
-  }
-
-  return true;
-}
-
 async function applyConflict(match) {
-  const ok = await resolveMatchOutcomeViaRpc(match, null, 'Ergebniskonflikt', 'conflict');
-  if (!ok) return;
+  await supabase.from('matches').update({ status: 'finished' }).eq('id', match.id);
+  await supabase.from('games').insert({
+    team_a_id: match.team_a_id,
+    team_b_id: match.team_b_id,
+    liga: match.liga,
+    label: 'Ergebniskonflikt',
+    status: 'conflict'
+  });
+  await supabase.from('teams').update({ pts: Math.max(0, (match.team_a?.pts || 0) - 1) }).eq('id', match.team_a_id);
+  await supabase.from('teams').update({ pts: Math.max(0, (match.team_b?.pts || 0) - 1) }).eq('id', match.team_b_id);
   await finishMatchCleanup(match, '⚠️ Ergebniskonflikt: beide Teams erhalten −1 Punkt.');
 }
 
 async function applyResolvedOutcome(match, winnerSide, label, status = 'normal') {
-  const ok = await resolveMatchOutcomeViaRpc(match, winnerSide, label, status);
-  if (!ok) return;
+  const teamAPoints = match.team_a?.pts || 0;
+  const teamBPoints = match.team_b?.pts || 0;
+  const teamAWins = match.team_a?.wins || 0;
+  const teamBWins = match.team_b?.wins || 0;
+  const teamALosses = match.team_a?.losses || 0;
+  const teamBLosses = match.team_b?.losses || 0;
+  const teamANoShow = match.team_a?.no_show || 0;
+  const teamBNoShow = match.team_b?.no_show || 0;
+
+  const winnerIsA = winnerSide === 'A';
+  const scoreA = winnerIsA ? 1 : 0;
+  const scoreB = winnerIsA ? 0 : 1;
+
+  await supabase.from('matches').update({ status: 'finished' }).eq('id', match.id);
+  await supabase.from('games').insert({
+    team_a_id: match.team_a_id,
+    team_b_id: match.team_b_id,
+    liga: match.liga,
+    score_a: scoreA,
+    score_b: scoreB,
+    label,
+    status
+  });
+
+  if (winnerIsA) {
+    const loserUpdate = {
+      pts: Math.max(0, teamBPoints - 3),
+      losses: teamBLosses + 1
+    };
+    if (status === 'no_show') loserUpdate.no_show = teamBNoShow + 1;
+
+    await supabase.from('teams').update({
+      pts: teamAPoints + 3,
+      wins: teamAWins + 1
+    }).eq('id', match.team_a_id);
+    await supabase.from('teams').update(loserUpdate).eq('id', match.team_b_id);
+  } else {
+    const loserUpdate = {
+      pts: Math.max(0, teamAPoints - 3),
+      losses: teamALosses + 1
+    };
+    if (status === 'no_show') loserUpdate.no_show = teamANoShow + 1;
+
+    await supabase.from('teams').update({
+      pts: teamBPoints + 3,
+      wins: teamBWins + 1
+    }).eq('id', match.team_b_id);
+    await supabase.from('teams').update(loserUpdate).eq('id', match.team_a_id);
+  }
+
   await finishMatchCleanup(match, '✅ Ergebnis bestätigt! Match beendet.');
 }
 
