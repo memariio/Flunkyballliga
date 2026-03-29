@@ -431,6 +431,9 @@
   .matches-dropdown[open] summary::after { content: '▴'; }
   .matches-dropdown-body { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 8px; }
   .stat-alert { color: var(--orange); }
+  .fairness-high { color: var(--green); }
+  .fairness-medium { color: #facc15; }
+  .fairness-low { color: var(--red); }
   .chat-search-wrap { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
   .chat-search-input {
     width:100%; background:var(--bg2); border:1px solid var(--border);
@@ -678,11 +681,17 @@
     </div>
     <div class="profile-subcards">
       <div class="card">
-        <div class="section-title">🚨 Verpasste Fristen & Nicht-Antritte</div>
+        <div class="section-title">🚨 Fairness & Verstöße</div>
         <div class="profile-stats" style="margin-top:0">
           <div class="stat-box"><div class="stat-val stat-alert" id="prof-deadline-missed">0</div><div class="stat-label">Frist verpeilt</div></div>
           <div class="stat-box"><div class="stat-val stat-alert" id="prof-no-show">0</div><div class="stat-label">Nicht angetreten</div></div>
+          <div class="stat-box"><div class="stat-val stat-alert" id="prof-result-conflicts">0</div><div class="stat-label">Ergebniskonflikte</div></div>
+          <div class="stat-box">
+            <div class="stat-val fairness-high" id="prof-fairness-level">Hoch</div>
+            <div class="stat-label">Fairness</div>
+          </div>
         </div>
+        <div class="mini-note" id="prof-fairness-note">Fairness-Score: 100 / 100</div>
       </div>
       <div class="card">
         <div class="section-title">🕘 Letztes Match</div>
@@ -1476,6 +1485,51 @@ async function loadActiveMatch() {
   updateReadyUI();
 }
 
+function calculateFairnessFromHistory(team, games) {
+  const deadlineMissed = team?.deadline_missed || 0;
+  const noShow = team?.no_show || 0;
+  const resultConflicts = (games || []).filter(g => g.status === 'conflict').length;
+
+  let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
+  score = Math.max(0, Math.min(100, score));
+
+  let cleanStreak = 0;
+  const orderedGames = [...(games || [])].reverse();
+
+  for (const game of orderedGames) {
+    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
+
+    if (hasViolation) {
+      cleanStreak = 0;
+      continue;
+    }
+
+    cleanStreak += 1;
+    if (cleanStreak >= 3) {
+      score = Math.min(100, score + 20);
+    }
+  }
+
+  let level = 'Hoch';
+  let className = 'fairness-high';
+
+  if (score < 70) {
+    level = 'Mittel';
+    className = 'fairness-medium';
+  }
+  if (score < 40) {
+    level = 'Niedrig';
+    className = 'fairness-low';
+  }
+
+  return {
+    score,
+    level,
+    className,
+    resultConflicts
+  };
+}
+
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
 async function loadProfile(team) {
   if (!team) return;
@@ -1510,6 +1564,12 @@ async function loadProfile(team) {
     .or(`team_a_id.eq.${team.id},team_b_id.eq.${team.id}`)
     .order('created_at', { ascending: false })
     .limit(20);
+
+  const fairness = calculateFairnessFromHistory(team, games || []);
+  document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
+  document.getElementById('prof-fairness-level').textContent = fairness.level;
+  document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro Match`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
