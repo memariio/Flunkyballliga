@@ -575,7 +575,7 @@
     <div class="loading-spinner"><div class="spinner"></div>Lade Matches…</div>
   </div>
 
-  <div class="section-title">📋 Letzte Matches</div>
+  <div class="section-title" style="margin-top:0.65rem">📋 Letzte Matches</div>
   <div class="liga-tabs" id="liga-tabs">
     <span class="liga-tab active-tab" onclick="filterGames('alle',this)">Alle</span>
     <span class="liga-tab" onclick="filterGames('bronze',this)">🥉 Bronze</span>
@@ -916,6 +916,7 @@ let currentProfileTeamId = null;
 let currentProfileTeam = null; // teams row
 let activeMatch = null;       // matches row (status = 'active')
 let timerInterval = null;
+let activeMatchesTimerInterval = null;
 let timerSeconds = 0;
 let resultSubmitted = false;
 let outgoingExtendRequested = false;
@@ -941,6 +942,27 @@ function formatTimer(secs) {
   const s = Math.max(0, Math.floor(secs || 0));
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+function startActiveMatchesTimers() {
+  if (activeMatchesTimerInterval) {
+    clearInterval(activeMatchesTimerInterval);
+    activeMatchesTimerInterval = null;
+  }
+
+  if (!allActiveMatches || allActiveMatches.length === 0) return;
+
+  activeMatchesTimerInterval = setInterval(() => {
+    allActiveMatches = allActiveMatches.map(match => ({
+      ...match,
+      timer_seconds: Math.max(0, (match.timer_seconds || 0) - 1)
+    }));
+
+    allActiveMatches.forEach(match => {
+      const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"]`);
+      if (el) el.textContent = formatTimer(match.timer_seconds || 0);
+    });
+  }, 1000);
 }
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -1290,11 +1312,18 @@ async function loadActiveMatches() {
   allActiveMatches = data || [];
   const list = document.getElementById('active-matches-list');
   const count = document.getElementById('active-matches-count');
+
+  if (activeMatchesTimerInterval) {
+    clearInterval(activeMatchesTimerInterval);
+    activeMatchesTimerInterval = null;
+  }
+
   if (!data || data.length === 0) {
     count.textContent = '0 Matches';
     list.innerHTML = `<div class="mini-note">Gerade laufen keine aktiven Matches.</div>`;
     return;
   }
+
   count.textContent = `${data.length} Matches`;
   list.innerHTML = data.map(m => {
     const secs = m.timer_seconds || 0;
@@ -1311,6 +1340,8 @@ async function loadActiveMatches() {
       </div>
     `;
   }).join('');
+
+  startActiveMatchesTimers();
 }
 
 async function loadGames(filter) {
@@ -1778,6 +1809,10 @@ async function finishMatchCleanup(match, toastMessage) {
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
+  }
+  if (activeMatchesTimerInterval) {
+    clearInterval(activeMatchesTimerInterval);
+    activeMatchesTimerInterval = null;
   }
   refreshActiveMatchUI();
   updateReadyUI();
