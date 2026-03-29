@@ -937,8 +937,6 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('de-DE');
 }
-function showToast(msg) {
-
 const LIGA_ORDER = ['bronze','silver','gold','platin','diamond'];
 const LIGA_NAMES = { bronze:'Bronze', silver:'Silber', gold:'Gold', platin:'Platin', diamond:'Diamant' };
 
@@ -962,6 +960,8 @@ function matchIsPromotion(teamA, teamB) {
 function promotionBadge() {
   return `<span class="liga-badge" style="background:#22c55e22;color:#4ade80;border:1px solid #22c55e55">⬆️ Aufstiegsmatch</span>`;
 }
+
+function showToast(msg) {
   const t = document.getElementById('toast');
   document.getElementById('toast-text').textContent = msg;
   t.classList.add('show');
