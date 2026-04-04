@@ -1364,6 +1364,8 @@ async function loadOutgoingPendingChallenges() {
     challengedTeamIds = new Set();
     return;
   }
+
+  // Only block teams that have a truly open (pending) challenge from us
   const { data, error } = await supabase
     .from('matches')
     .select('team_b_id')
@@ -1375,7 +1377,19 @@ async function loadOutgoingPendingChallenges() {
     return;
   }
 
-  challengedTeamIds = new Set((data || []).map(row => row.team_b_id).filter(Boolean));
+  const pendingIds = new Set((data || []).map(row => row.team_b_id).filter(Boolean));
+
+  // After a match is completed (any terminal status), allow re-challenging that team
+  if (pendingIds.size > 0) {
+    const { data: finishedMatches } = await supabase
+      .from('matches')
+      .select('team_b_id')
+      .eq('team_a_id', myTeam.id)
+      .in('status', ['finished', 'declined', 'conflict', 'no_show', 'deadline']);
+    (finishedMatches || []).forEach(row => pendingIds.delete(row.team_b_id));
+  }
+
+  challengedTeamIds = pendingIds;
 }
 
 async function loadReadyTeams() {
@@ -1976,6 +1990,9 @@ async function respondChallenge(accepted) {
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('❌ Herausforderung abgelehnt.');
     loadNotifications();
+    // Reload so the challenger can immediately re-challenge after decline
+    await loadOutgoingPendingChallenges();
+    loadReadyTeams();
   }
   pendingChallengeMatchId = null; pendingNotifId = null;
 }
