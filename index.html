@@ -1621,46 +1621,74 @@ async function loadActiveMatch() {
   updateReadyUI();
 }
 
+// ─── FAIRNESS SYSTEM ─────────────────────────────────────────────────────────
+// Score starts at 100.
+// Deductions (from team counters stored in DB):
+//   deadline_missed : -15 per occurrence
+//   no_show         : -25 per occurrence
+//   conflict        : -10 per occurrence (counted from games history)
+//
+// Recovery (from chronological game history, oldest → newest):
+//   A "clean" game = status 'finished' or 'normal' (no violation).
+//   Once a streak of 3 clean games is reached, each *additional* clean game
+//   after that gives +5 back (capped at 100).
+//   A single violation resets the streak to 0.
+//
+// The computed score is written back to teams.fairness_score so it persists
+// and is available for the ready-teams grid without opening a profile.
+
 function calculateFairnessFromHistory(team, games) {
   const deadlineMissed = team?.deadline_missed || 0;
-  const noShow = team?.no_show || 0;
-  const resultConflicts = (games || []).filter(g => g.status === 'conflict').length;
+  const noShow         = team?.no_show || 0;
+  const sortedGames    = [...(games || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const resultConflicts = sortedGames.filter(g => g.status === 'conflict').length;
 
-  let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
+  // Base deductions
+  let score = 100
+    - (deadlineMissed * 15)
+    - (noShow         * 25)
+    - (resultConflicts * 10);
   score = Math.max(0, Math.min(100, score));
 
+  // Recovery: streak must reach 3 before any bonus kicks in;
+  // every clean game *after* the 3rd gives +5 (not +20 per game)
   let cleanStreak = 0;
-  const chronologicalGames = [...(games || [])].reverse();
-
-  for (const game of chronologicalGames) {
-    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
-    if (hasViolation) {
+  for (const game of sortedGames) {
+    const isViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
+    if (isViolation) {
       cleanStreak = 0;
-      continue;
+    } else {
+      cleanStreak++;
+      // Only reward from the 4th clean game onward (streak > 3)
+      if (cleanStreak > 3) {
+        score = Math.min(100, score + 5);
+      }
     }
-    cleanStreak += 1;
-    if (cleanStreak >= 3) score = Math.min(100, score + 20);
   }
 
-  let level = 'Hoch';
-  let className = 'fairness-high';
+  score = Math.max(0, Math.min(100, score));
+
+  let level      = 'Hoch';
+  let className  = 'fairness-high';
   let shortClass = 'high';
-  if (score < 70) {
-    level = 'Mittel';
-    className = 'fairness-medium';
-    shortClass = 'medium';
-  }
-  if (score < 40) {
-    level = 'Niedrig';
-    className = 'fairness-low';
-    shortClass = 'low';
-  }
+  if (score < 70) { level = 'Mittel';   className = 'fairness-medium'; shortClass = 'medium'; }
+  if (score < 40) { level = 'Niedrig';  className = 'fairness-low';    shortClass = 'low'; }
 
   return { score, level, className, shortClass, resultConflicts };
 }
 
+// Persist fairness score to DB so it's available everywhere without opening profiles
+async function persistFairnessScore(teamId, score) {
+  await supabase.from('teams').update({ fairness_score: score }).eq('id', teamId);
+}
+
 function getReadyTeamFairness(team) {
-  const score = Number.isFinite(team?.fairness_score_cached) ? team.fairness_score_cached : 100;
+  // Prefer persisted DB value (fairness_score), fall back to cached, then 100
+  const score = Number.isFinite(team?.fairness_score)
+    ? team.fairness_score
+    : Number.isFinite(team?.fairness_score_cached)
+      ? team.fairness_score_cached
+      : 100;
   if (score >= 70) return { label: 'Fairness Hoch', shortClass: 'high' };
   if (score >= 40) return { label: 'Fairness Mittel', shortClass: 'medium' };
   return { label: 'Fairness Niedrig', shortClass: 'low' };
@@ -1739,12 +1767,18 @@ async function loadProfile(team) {
 
   const fairness = calculateFairnessFromHistory(team, games || []);
   team.fairness_score_cached = fairness.score;
-  if (myTeam && team.id === myTeam.id) myTeam.fairness_score_cached = fairness.score;
+  team.fairness_score = fairness.score;
+  if (myTeam && team.id === myTeam.id) {
+    myTeam.fairness_score_cached = fairness.score;
+    myTeam.fairness_score = fairness.score;
+  }
+  // Persist to DB so ready-teams grid and other views always have the current score
+  persistFairnessScore(team.id, fairness.score);
 
   document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
-  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Abzug: Frist verpasst −15, No-Show −25, Konflikt −10 · Bonus ab 4. sauberem Match in Folge: +5`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
@@ -1971,10 +2005,31 @@ async function respondChallenge(accepted) {
 
   if (accepted) {
     const now = new Date().toISOString();
-    await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now }).eq('id', pendingChallengeMatchId);
-    await supabase.from('ready_teams').delete().in('team_id', [match.team_a_id, match.team_b_id]);
+
+    // Update match to active and fetch the fresh row with all joins in one step
+    const { data: activeMatchData } = await supabase
+      .from('matches')
+      .update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now })
+      .eq('id', pendingChallengeMatchId)
+      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+      .single();
+
+    const teamAId = activeMatchData?.team_a_id || match.team_a_id;
+    const teamBId = activeMatchData?.team_b_id || match.team_b_id;
+
+    await supabase.from('ready_teams').delete().in('team_id', [teamAId, teamBId]);
     isReady = false;
+
+    // Set activeMatch directly — no need for another DB round-trip
+    if (activeMatchData) {
+      activeMatch = activeMatchData;
+      timerSeconds = getRemainingSeconds(activeMatch);
+      resultSubmitted = false;
+      startTimer();
+      refreshActiveMatchUI();
+    }
     updateReadyUI();
+
     if (match.team_a?.user_id) {
       await supabase.from('notifications').insert({
         user_id: match.team_a.user_id,
@@ -1987,7 +2042,6 @@ async function respondChallenge(accepted) {
     }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
-    await loadActiveMatch();
     loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
@@ -2133,14 +2187,8 @@ async function finishMatchCleanup(match, toastMessage) {
   showToast(toastMessage);
   activeMatch = null;
   isReady = false;
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  if (activeMatchesTimerInterval) {
-    clearInterval(activeMatchesTimerInterval);
-    activeMatchesTimerInterval = null;
-  }
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (activeMatchesTimerInterval) { clearInterval(activeMatchesTimerInterval); activeMatchesTimerInterval = null; }
   refreshActiveMatchUI();
   updateReadyUI();
 
@@ -2153,7 +2201,30 @@ async function finishMatchCleanup(match, toastMessage) {
     }
   }
 
+  // Recalculate and persist fairness score for BOTH teams after every match
+  await recalcAndPersistFairness(match.team_a_id);
+  await recalcAndPersistFairness(match.team_b_id);
+
   await loadAllData();
+}
+
+// Fetch team + game history and persist the freshly calculated fairness score
+async function recalcAndPersistFairness(teamId) {
+  if (!teamId) return;
+  const [{ data: team }, { data: games }] = await Promise.all([
+    supabase.from('teams').select('*').eq('id', teamId).maybeSingle(),
+    supabase.from('games').select('*')
+      .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+      .order('created_at', { ascending: true })
+  ]);
+  if (!team) return;
+  const fairness = calculateFairnessFromHistory(team, games || []);
+  await persistFairnessScore(teamId, fairness.score);
+  // Keep local myTeam in sync
+  if (myTeam && myTeam.id === teamId) {
+    myTeam.fairness_score = fairness.score;
+    myTeam.fairness_score_cached = fairness.score;
+  }
 }
 
 async function evaluateMatch(match) {
@@ -2754,6 +2825,8 @@ window.renderChatBadge = renderChatBadge;
 window.startPollingFallback = startPollingFallback;
 window.stopPollingFallback = stopPollingFallback;
 window.handleMatchDeadline = handleMatchDeadline;
+window.recalcAndPersistFairness = recalcAndPersistFairness;
+window.persistFairnessScore = persistFairnessScore;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
