@@ -1359,7 +1359,7 @@ async function syncReadyState() {
 
 // ─── DATA LOADING ─────────────────────────────────────────────────────────────
 async function loadAllData() {
-  // loadActiveMatch must run before the rest so the banner is shown immediately
+  // loadActiveMatch FIRST — so the banner is always in sync before anything else renders
   if (myTeam) await loadActiveMatch();
   await Promise.allSettled([
     loadOutgoingPendingChallenges(),
@@ -1605,23 +1605,13 @@ async function loadLeaderboard(filter) {
 
 async function loadActiveMatch() {
   if (!myTeam) { activeMatch = null; return; }
-
-  // Retry up to 3x with 800ms delay to handle race conditions where the DB
-  // update hasn't propagated yet (e.g. right after respondChallenge)
-  let data = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const result = await supabase
-      .from('matches')
-      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-      .or(`team_a_id.eq.${myTeam.id},team_b_id.eq.${myTeam.id}`)
-      .eq('status', 'active')
-      .maybeSingle();
-    data = result.data || null;
-    if (data || attempt === 2) break;
-    await new Promise(r => setTimeout(r, 800));
-  }
-
-  activeMatch = data;
+  const { data } = await supabase
+    .from('matches')
+    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+    .or(`team_a_id.eq.${myTeam.id},team_b_id.eq.${myTeam.id}`)
+    .eq('status', 'active')
+    .maybeSingle();
+  activeMatch = data || null;
   if (activeMatch) {
     timerSeconds = getRemainingSeconds(activeMatch);
     resultSubmitted = !!(myTeam.id === activeMatch.team_a_id ? activeMatch.team_a_result : activeMatch.team_b_result);
@@ -2032,7 +2022,7 @@ async function respondChallenge(accepted) {
     await supabase.from('ready_teams').delete().in('team_id', [teamAId, teamBId]);
     isReady = false;
 
-    // Set activeMatch directly — no need for another DB round-trip
+    // For Team B (the accepting team): set activeMatch directly and show banner immediately
     if (activeMatchData) {
       activeMatch = activeMatchData;
       timerSeconds = getRemainingSeconds(activeMatch);
@@ -2042,6 +2032,8 @@ async function respondChallenge(accepted) {
     }
     updateReadyUI();
 
+    // For Team A (the challenger): use a dedicated notification type so their client
+    // immediately calls loadActiveMatch() without waiting for the user to click anything
     if (match.team_a?.user_id) {
       await supabase.from('notifications').insert({
         user_id: match.team_a.user_id,
@@ -2054,7 +2046,7 @@ async function respondChallenge(accepted) {
     }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
-    loadAllData();
+    await loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
     if (match.team_a?.user_id) {
@@ -2433,14 +2425,12 @@ async function openNotification(id, type, relatedId) {
       if (myTeam) await loadActiveMatch();
     }
   } else if (type === 'challenge_accepted') {
-    // Team A: the challenge was accepted — immediately load the active match and show the banner
+    // Team A: challenge was accepted — immediately load the active match and show the banner
     await supabase.from('notifications').update({ read: true }).eq('id', id);
     loadNotifications();
     if (myTeam) {
       await loadActiveMatch();
-      if (activeMatch) {
-        showToast('✅ Eure Herausforderung wurde angenommen! Match läuft.');
-      }
+      showToast('✅ Eure Herausforderung wurde angenommen! Match läuft.');
     }
     await loadOutgoingPendingChallenges();
     loadReadyTeams();
@@ -2721,8 +2711,17 @@ function setupPrivateChannel() {
       schema: 'public',
       table: 'notifications',
       filter: `user_id=eq.${uid}`
-    }, (_payload) => {
+    }, (payload) => {
       loadNotifications();
+      // If the challenge was accepted, immediately load the active match for Team A
+      // so the banner appears without requiring the user to click the notification bell.
+      if (payload.new?.type === 'challenge_accepted' && myTeam) {
+        loadActiveMatch().then(() => {
+          if (activeMatch) showToast('✅ Eure Herausforderung wurde angenommen! Match läuft.');
+        });
+        loadReadyTeams();
+        loadOutgoingPendingChallenges();
+      }
     })
     .on('postgres_changes', {
       event: 'INSERT',
