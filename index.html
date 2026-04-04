@@ -1038,9 +1038,10 @@ const SUPABASE_URL = 'https://trviggxajixuorjkbjep.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRydmlnZ3hhaml4dW9yamtiamVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTc0NzIsImV4cCI6MjA5MDI3MzQ3Mn0.bMhwydIUyGmRpNlsjAweq8aJgkziLDOhgbcJ6dHoXSY';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storageKey: 'flunkyball-auth'
   }
 });
 
