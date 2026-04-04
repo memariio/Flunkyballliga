@@ -8,12 +8,10 @@
 <meta http-equiv="Expires" content="0">
 <title>Flunkyballradar</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script>
-window.addEventListener('scroll', () => { if(typeof updateFloatingButtonsVisibility==='function') updateFloatingButtonsVisibility(); }, { passive: true });
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js">window.addEventListener('scroll', updateFloatingButtonsVisibility, { passive: true });
 window.addEventListener('resize', () => {
-  if(typeof updateMobileActionBar==='function') updateMobileActionBar();
-  if(typeof updateFloatingButtonsVisibility==='function') updateFloatingButtonsVisibility();
+  updateMobileActionBar();
+  updateFloatingButtonsVisibility();
 });
 document.addEventListener('click', (e) => {
   const panel = document.getElementById('notif-panel');
@@ -506,9 +504,9 @@ document.addEventListener('click', (e) => {
   }
   .notif-wrap { position: relative; }
   .notif-panel {
-    position: absolute; top: 54px; right: 0; width: 320px; background: var(--bg3);
+    position: fixed; top: 74px; right: 16px; width: 320px; max-width: calc(100vw - 24px); background: var(--bg3);
     border: 1px solid var(--border2); border-radius: 14px; box-shadow: 0 16px 40px #0008;
-    overflow: hidden; display: none; z-index: 210;
+    overflow: hidden; display: none; z-index: 270;
   }
   .notif-panel.open { display: block; }
   .notif-header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-weight: 800; }
@@ -594,8 +592,8 @@ document.addEventListener('click', (e) => {
 
     .notif-panel {
       top:auto;
-      bottom:62px;
-      right:0;
+      bottom:84px;
+      right:14px;
       left:auto;
       width:min(320px, calc(100vw - 24px));
     }
@@ -621,10 +619,6 @@ document.addEventListener('click', (e) => {
     <div id="nav-loggedin" style="display:none;align-items:center;gap:0.75rem">
       <div class="notif-wrap">
         <button class="notification-bell" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="notification-badge"></span></button>
-        <div class="notif-panel" id="notif-panel">
-          <div class="notif-header">Benachrichtigungen</div>
-          <div id="notif-list"></div>
-        </div>
       </div>
       <span id="ready-status-text" style="font-size:0.78rem;color:var(--gray)"><span class="status-dot offline" id="status-dot"></span><span id="ready-status-label">Offline</span></span>
       <button class="btn-ready off" id="ready-btn" onclick="toggleReady()">Bereit stellen</button>
@@ -642,6 +636,11 @@ document.addEventListener('click', (e) => {
     <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
   </div>
   <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="toggleReady()">Bereit stellen</button>
+</div>
+
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-header">Benachrichtigungen</div>
+  <div id="notif-list"></div>
 </div>
 
 <!-- ── HOME PAGE ── -->
@@ -2234,27 +2233,7 @@ function toggleNotifications(event) {
   if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
   const panel = document.getElementById('notif-panel');
   if (!panel) return;
-
-  const isMobile = window.innerWidth <= 600;
   panel.classList.toggle('open');
-
-  if (isMobile) {
-    panel.style.position = 'fixed';
-    panel.style.right = '14px';
-    panel.style.left = 'auto';
-    panel.style.top = 'auto';
-    panel.style.bottom = '84px';
-    panel.style.zIndex = '270';
-    panel.style.transformOrigin = 'bottom right';
-  } else {
-    panel.style.position = 'absolute';
-    panel.style.right = '0';
-    panel.style.left = 'auto';
-    panel.style.top = '54px';
-    panel.style.bottom = 'auto';
-    panel.style.zIndex = '210';
-    panel.style.transformOrigin = 'top right';
-  }
 }
 
 // ─── CHAT ─────────────────────────────────────────────────────────────────────
@@ -2416,8 +2395,7 @@ supabase.channel('public-data')
 
 // close notif panel on outside click
 document.addEventListener('click', e => {
-  if (!e.target.closest('.notif-wrap') && !e.target.closest('.mobile-notif-wrap'))
-    document.getElementById('notif-panel')?.classList.remove('open');
+  if (!e.target.closest('.notif-wrap')) document.getElementById('notif-panel')?.classList.remove('open');
 });
 
 // ─── SQL SETUP HELPER ─────────────────────────────────────────────────────────
