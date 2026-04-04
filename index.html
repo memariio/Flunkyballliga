@@ -41,7 +41,7 @@ window.addEventListener('focus', async () => {
   try { await refreshLiveData(); } catch (e) { console.error(e); }
 });
 window.addEventListener('pageshow', async () => {
-  try { await refreshLiveData(); } catch (e) { console.error(e); }
+  try { bindNotificationDelegation(); await refreshLiveData(); } catch (e) { console.error(e); }
 });
 document.addEventListener('visibilitychange', async () => {
   if (authHydrating) return;
@@ -509,6 +509,9 @@ document.addEventListener('visibilitychange', async () => {
     display: none;
     z-index: 280;
     pointer-events: auto;
+    overflow: auto;
+    max-height: min(55vh, 420px);
+    -webkit-overflow-scrolling: touch;
   }
   .mobile-notif-panel.open { display: block; }
   .mobile-notif-panel .notif-item { pointer-events: auto; }
@@ -557,7 +560,7 @@ document.addEventListener('visibilitychange', async () => {
   }
   .notif-panel.open { display: block; }
   .notif-header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-weight: 800; }
-  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; }
+  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .notif-item:hover { background: var(--card2); }
   .notif-item:last-child { border-bottom: none; }
   .notif-title { font-weight: 700; color: var(--white); font-size: 0.88rem; }
@@ -1152,25 +1155,48 @@ function isSessionExpired() {
   const expiresAt = Number(raw);
   return !Number.isFinite(expiresAt) || Date.now() > expiresAt;
 }
+async function refreshHomeSections() {
+  try {
+    await Promise.allSettled([
+      loadReadyTeams(),
+      loadActiveMatches(),
+      loadGames(currentLiga),
+      loadLeaderboard(currentLBFilter),
+      loadNotifications()
+    ]);
+    if (currentUser && myTeam) {
+      await loadActiveMatch();
+      await syncReadyState();
+    }
+    updateMobileActionBar();
+    updateFloatingButtonsVisibility();
+  } catch (e) {
+    console.error('Home section refresh failed:', e);
+  }
+}
+
 async function refreshLiveData() {
   if (authHydrating) return;
-  await loadAllData();
-  if (currentUser && myTeam) {
-    await loadActiveMatch();
-    await syncReadyState();
-    if (currentPage === 'profile') {
-      const viewedTeamId = selectedProfileTeamId || myTeam?.id;
-      if (viewedTeamId) {
-        const { data: freshTeam } = await supabase.from('teams').select('*').eq('id', viewedTeamId).maybeSingle();
-        if (freshTeam) await loadProfile(freshTeam);
-      }
+  await refreshHomeSections();
+
+  if (currentUser && myTeam && currentPage === 'profile') {
+    const viewedTeamId = selectedProfileTeamId || myTeam?.id;
+    if (viewedTeamId) {
+      const { data: freshTeam } = await supabase.from('teams').select('*').eq('id', viewedTeamId).maybeSingle();
+      if (freshTeam) await loadProfile(freshTeam);
     }
+  }
+
+  if (currentPage === 'chat' && currentUser && myTeam) {
+    renderChatContacts();
   }
 }
 function startLiveRefresh() {
   stopLiveRefresh();
   liveRefreshInterval = setInterval(async () => {
     try {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      if (document.visibilityState !== 'visible' && !isStandalone) return;
       await refreshLiveData();
     } catch (e) {
       console.error('Live refresh failed:', e);
@@ -1453,6 +1479,10 @@ async function loadAllData() {
   }
 
   if (currentPage === 'chat' && currentUser && myTeam) renderChatContacts();
+  if (currentPage === 'home') {
+    await loadReadyTeams();
+    await loadActiveMatches();
+  }
   updateMobileActionBar();
   updateFloatingButtonsVisibility();
 }
@@ -1767,6 +1797,32 @@ function updateMobileActionBar() {
   }
 }
 
+
+function bindNotificationDelegation() {
+  const desktopList = document.getElementById('notif-list');
+  const mobileList = document.getElementById('mobile-notif-list');
+
+  const handler = async (event) => {
+    const item = event.target.closest('.notif-item[data-notification-id]');
+    if (!item) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const id = item.getAttribute('data-notification-id');
+    const type = item.getAttribute('data-notification-type');
+    const relatedId = item.getAttribute('data-notification-related-id');
+    await openNotification(id, type, relatedId);
+  };
+
+  [desktopList, mobileList].forEach((list) => {
+    if (!list) return;
+    if (!list.dataset.boundNotifications) {
+      list.addEventListener('click', handler);
+      list.addEventListener('touchend', handler, { passive: false });
+      list.dataset.boundNotifications = '1';
+    }
+  });
+}
+
 function updateFloatingButtonsVisibility() {
   const wrap = document.getElementById('mobile-fab-wrap');
   if (!wrap || wrap.classList.contains('hidden-force') || window.innerWidth > 600) return;
@@ -1928,6 +1984,7 @@ function updateReadyUI() {
     dot.style.background = '';
     dot.style.boxShadow = '';
   }
+  bindNotificationDelegation();
   updateMobileActionBar();
 }
 
@@ -2311,7 +2368,7 @@ function renderNotifications(items) {
   const mobileBadge = document.getElementById('mobile-notification-badge');
   const unread = items.filter(n => !n.read).length;
   const content = items.length ? items.map(n => `
-    <div class="notif-item" onclick="openNotification(${JSON.stringify(n.id)}, ${JSON.stringify(n.type)}, ${JSON.stringify(n.related_id)})">
+    <div class="notif-item" data-notification-id="${String(n.id).replace(/"/g,'&quot;')}" data-notification-type="${String(n.type ?? '').replace(/"/g,'&quot;')}" data-notification-related-id="${String(n.related_id ?? '').replace(/"/g,'&quot;')}">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
