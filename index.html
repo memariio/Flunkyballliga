@@ -465,7 +465,7 @@ document.addEventListener('click', (e) => {
   .mobile-fab-wrap.hide-fabs {
     opacity:0; pointer-events:none; transform:translateY(14px);
   }
-  .mobile-notif-wrap { position:relative; }
+  .mobile-notif-wrap { position:relative; z-index:271; }
   .mobile-notif-btn {
     width:52px; height:52px; border-radius:16px; border:1px solid var(--border2);
     background:var(--card); color:var(--white); cursor:pointer; position:relative;
@@ -502,7 +502,7 @@ document.addEventListener('click', (e) => {
     display: inline-flex; align-items: center; justify-content: center; padding: 0 5px;
     display: none;
   }
-  .notif-wrap { position: relative; }
+  .notif-wrap { position: relative; overflow: visible; }
   .notif-panel {
     position: absolute; top: 54px; right: 0; width: 320px; background: var(--bg3);
     border: 1px solid var(--border2); border-radius: 14px; box-shadow: 0 16px 40px #0008;
@@ -598,6 +598,19 @@ document.addEventListener('click', (e) => {
       width:min(320px, calc(100vw - 24px));
     }
   }
+
+  @media (max-width: 600px) {
+    #notif-panel.open {
+      position: fixed !important;
+      right: 14px !important;
+      left: auto !important;
+      top: auto !important;
+      bottom: 84px !important;
+      width: min(320px, calc(100vw - 24px)) !important;
+      z-index: 270 !important;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -2234,6 +2247,11 @@ function toggleNotifications(event) {
   if (!panel) return;
 
   const isMobile = window.innerWidth <= 600;
+
+  if (isMobile && panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
+
   panel.classList.toggle('open');
 
   if (isMobile) {
@@ -2244,7 +2262,12 @@ function toggleNotifications(event) {
     panel.style.bottom = '84px';
     panel.style.zIndex = '270';
     panel.style.transformOrigin = 'bottom right';
+    panel.style.width = 'min(320px, calc(100vw - 24px))';
   } else {
+    const desktopWrap = document.querySelector('.notif-wrap');
+    if (desktopWrap && panel.parentElement !== desktopWrap) {
+      desktopWrap.appendChild(panel);
+    }
     panel.style.position = 'absolute';
     panel.style.right = '0';
     panel.style.left = 'auto';
@@ -2252,6 +2275,7 @@ function toggleNotifications(event) {
     panel.style.bottom = 'auto';
     panel.style.zIndex = '210';
     panel.style.transformOrigin = 'top right';
+    panel.style.width = '320px';
   }
 }
 
