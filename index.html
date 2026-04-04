@@ -1027,6 +1027,7 @@ let outgoingExtendRequested = false;
 let activeChatTeamId = null;
 let activeChatTeam = null;    // teams row
 let chatSubscription = null;
+let realtimeChannel = null;
 let pendingChallengeTarget = null; // teams row
 let challengedTeamIds = new Set();
 let pendingNotifId = null;
@@ -1213,6 +1214,7 @@ async function handleLogout() {
     isReady = false;
     updateNavAuth();
     updateAuthViews();
+    await setupRealtimeSubscriptions();
     await loadAllData();
   }
 }
@@ -2269,16 +2271,6 @@ async function openChatForTeam(teamOrObj) {
   document.getElementById('chat-send-btn').disabled = false;
   showPage('chat');
   await loadMessages();
-  // subscribe to new messages
-  if (chatSubscription) chatSubscription.unsubscribe();
-  chatSubscription = supabase.channel('chat:'+[myTeam.id, t.id].sort().join('-'))
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      const m = payload.new;
-      if ((m.sender_id === myTeam.id && m.receiver_id === t.id) || (m.sender_id === t.id && m.receiver_id === myTeam.id)) {
-        appendMessage(m);
-      }
-    })
-    .subscribe();
   renderChatContacts();
 }
 
@@ -2307,9 +2299,15 @@ function renderMessage(m) {
 
 function appendMessage(m) {
   const msgs = document.getElementById('chat-messages');
+  if (!msgs || !m) return;
+  const messageId = m.id ? String(m.id) : '';
+  if (messageId && msgs.querySelector(`[data-message-id="${messageId}"]`)) return;
   const note = msgs.querySelector('.mini-note');
   if (note) note.remove();
-  msgs.insertAdjacentHTML('beforeend', renderMessage(m));
+  const html = renderMessage(m);
+  msgs.insertAdjacentHTML('beforeend', messageId
+    ? `<div data-message-id="${escHtml(messageId)}">${html}</div>`
+    : html);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
@@ -2341,6 +2339,103 @@ async function sendMsg() {
       read: false
     });
   }
+}
+
+
+function messageBelongsToMe(msg) {
+  if (!myTeam || !msg) return false;
+  return msg.sender_id === myTeam.id || msg.receiver_id === myTeam.id;
+}
+
+function messageBelongsToActiveChat(msg) {
+  if (!myTeam || !activeChatTeamId || !msg) return false;
+  return (
+    (msg.sender_id === myTeam.id && msg.receiver_id === activeChatTeamId) ||
+    (msg.sender_id === activeChatTeamId && msg.receiver_id === myTeam.id)
+  );
+}
+
+async function refreshCurrentProfileIfVisible() {
+  if (!currentProfileTeamId || currentPage !== 'profile') return;
+  const { data: team } = await supabase.from('teams').select('*').eq('id', currentProfileTeamId).maybeSingle();
+  if (!team) return;
+  currentProfileTeam = team;
+  if (myTeam && team.id === myTeam.id) myTeam = team;
+  await loadProfile(team);
+  updateNavAuth();
+}
+
+async function setupRealtimeSubscriptions() {
+  if (realtimeChannel) {
+    try { await supabase.removeChannel(realtimeChannel); } catch (e) {}
+    realtimeChannel = null;
+  }
+
+  realtimeChannel = supabase.channel('app-live-updates')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, async () => {
+      await loadReadyTeams();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async () => {
+      if (myTeam) await loadOutgoingPendingChallenges();
+      await loadReadyTeams();
+      await loadActiveMatches();
+      if (myTeam) await loadActiveMatch();
+      updateReadyUI();
+      updateMobileActionBar();
+      if (currentProfileTeamId && currentPage === 'profile') await refreshCurrentProfileIfVisible();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, async () => {
+      await loadGames(currentLiga);
+      await loadLeaderboard(currentLBFilter);
+      if (currentProfileTeamId && currentPage === 'profile') await refreshCurrentProfileIfVisible();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
+      const changedId = payload?.new?.id || payload?.old?.id || null;
+      if (currentUser && changedId && myTeam && changedId === myTeam.id) {
+        const { data: freshTeam } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
+        if (freshTeam) myTeam = freshTeam;
+        updateNavAuth();
+        updateReadyUI();
+      }
+      await loadLeaderboard(currentLBFilter);
+      await loadReadyTeams();
+      if (currentPage === 'chat' && currentUser && myTeam) await renderChatContacts();
+      if (currentProfileTeamId && changedId && currentProfileTeamId === changedId) await refreshCurrentProfileIfVisible();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, async (payload) => {
+      const targetUserId = payload?.new?.user_id || payload?.old?.user_id;
+      if (currentUser && targetUserId === currentUser.id) {
+        await loadNotifications();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload) => {
+      const msg = payload?.new || payload?.old;
+      if (!messageBelongsToMe(msg)) return;
+
+      if (currentPage === 'chat' && currentUser && myTeam) {
+        await renderChatContacts();
+      }
+
+      if (messageBelongsToActiveChat(msg)) {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          appendMessage(payload.new);
+          if (payload.new.sender_id === activeChatTeamId && payload.new.receiver_id === myTeam.id) {
+            await supabase.from('messages')
+              .update({ read: true })
+              .eq('id', payload.new.id)
+              .eq('receiver_id', myTeam.id);
+          }
+        } else {
+          await loadMessages();
+        }
+      }
+
+      if (currentUser) {
+        await loadNotifications();
+      }
+    });
+
+  realtimeChannel.subscribe();
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -2378,20 +2473,7 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
-supabase.channel('public-data')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, () => loadReadyTeams())
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
-    await loadOutgoingPendingChallenges();
-    loadReadyTeams();
-    await loadActiveMatches();
-    if (myTeam) await loadActiveMatch();
-  })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => loadGames(currentLiga))
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => loadLeaderboard(currentLBFilter))
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-    if (currentUser && payload.new.user_id === currentUser.id) loadNotifications();
-  })
-  .subscribe();
+// Live-Updates werden zentral über setupRealtimeSubscriptions() verwaltet.
 
 // close notif panel on outside click
 document.addEventListener('click', e => {
