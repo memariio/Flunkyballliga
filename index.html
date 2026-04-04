@@ -1289,7 +1289,9 @@ async function syncAuthState(session) {
 
     updateNavAuth();
     updateAuthViews();
+    setupPrivateChannel();
     await loadAllData();
+    if (myTeam) renderChatBadge();
   } finally {
     authHydrating = false;
   }
@@ -2420,7 +2422,10 @@ function showPage(name) {
   document.getElementById('page-'+name)?.classList.add('active');
   document.getElementById('nav-'+name)?.classList.add('active');
   currentPage = name;
-  if (name === 'chat' && currentUser && myTeam) renderChatContacts();
+  if (name === 'chat' && currentUser && myTeam) {
+    renderChatContacts();
+    renderChatBadge();
+  }
 }
 
 function filterGames(liga, el) {
@@ -2448,20 +2453,83 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
+
+// Public channel: ready_teams, matches, games, leaderboard
 supabase.channel('public-data')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, () => loadReadyTeams())
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, async () => {
+    await syncReadyState();
+    loadReadyTeams();
+  })
   .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
     await loadOutgoingPendingChallenges();
     loadReadyTeams();
     await loadActiveMatches();
-    if (myTeam) await loadActiveMatch();
+    if (myTeam) {
+      await loadActiveMatch();
+      // Reload myTeam so points/liga stay fresh after match resolution
+      const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
+      if (data) { myTeam = data; updateNavAuth(); }
+    }
   })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => loadGames(currentLiga))
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => loadLeaderboard(currentLBFilter))
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-    if (currentUser && payload.new.user_id === currentUser.id) loadNotifications();
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
+    loadGames(currentLiga);
+    loadLeaderboard(currentLBFilter);
+  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
+    loadLeaderboard(currentLBFilter);
+    // Keep myTeam in sync if our own row changed
+    if (myTeam && payload.new?.id === myTeam.id) {
+      myTeam = payload.new;
+      updateNavAuth();
+      updateReadyUI();
+    }
   })
   .subscribe();
+
+// Private channel: notifications + messages for the logged-in user
+// Re-initialized on login/logout via setupPrivateChannel()
+let _privateChannel = null;
+function setupPrivateChannel() {
+  if (_privateChannel) {
+    supabase.removeChannel(_privateChannel);
+    _privateChannel = null;
+  }
+  if (!currentUser) return;
+
+  _privateChannel = supabase.channel('private-' + currentUser.id)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'notifications',
+      filter: `user_id=eq.${currentUser.id}`
+    }, () => loadNotifications())
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `receiver_id=eq.${myTeam?.id}`
+    }, (payload) => {
+      // Update chat badge regardless of which page we're on
+      renderChatBadge();
+      // If chat is open with this sender, append the message live
+      if (currentPage === 'chat' && activeChatTeamId === payload.new.sender_id) {
+        appendMessage(payload.new);
+        // Mark as read immediately
+        supabase.from('messages').update({ read: true })
+          .eq('id', payload.new.id).then(() => {});
+      }
+    })
+    .subscribe();
+}
+
+async function renderChatBadge() {
+  if (!myTeam) return;
+  const { count } = await supabase.from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('receiver_id', myTeam.id)
+    .eq('read', false);
+  const badge = document.getElementById('chat-badge');
+  if (badge) {
+    badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    badge.textContent = count || '';
+  }
+}
 
 // close notif panel on outside click
 document.addEventListener('click', e => {
@@ -2517,6 +2585,8 @@ window.toggleNotifications = toggleNotifications;
 window.toggleHistory = toggleHistory;
 window.saveProfile = saveProfile;
 window.renderReadyTeams = renderReadyTeams;
+window.setupPrivateChannel = setupPrivateChannel;
+window.renderChatBadge = renderChatBadge;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
