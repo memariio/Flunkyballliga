@@ -1285,11 +1285,13 @@ async function syncAuthState(session) {
       isReady = false;
       challengedTeamIds = new Set();
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      stopPollingFallback();
     }
 
     updateNavAuth();
     updateAuthViews();
     setupPrivateChannel();
+    startPollingFallback();
     await loadAllData();
     if (myTeam) renderChatBadge();
   } finally {
@@ -2486,36 +2488,79 @@ supabase.channel('public-data')
   })
   .subscribe();
 
-// Private channel: notifications + messages for the logged-in user
-// Re-initialized on login/logout via setupPrivateChannel()
+// ─── PRIVATE REALTIME CHANNEL ────────────────────────────────────────────────
+// Handles notifications + messages for the logged-in user.
+// Uses broadcast (no RLS required) via Supabase presence/broadcast as fallback,
+// but primarily uses postgres_changes with explicit filters.
 let _privateChannel = null;
+let _privateChannelStatus = null;
+
 function setupPrivateChannel() {
   if (_privateChannel) {
     supabase.removeChannel(_privateChannel);
     _privateChannel = null;
   }
-  if (!currentUser) return;
+  if (!currentUser || !myTeam) return;
 
-  _privateChannel = supabase.channel('private-' + currentUser.id)
+  const uid  = currentUser.id;
+  const tmid = myTeam.id;
+
+  _privateChannel = supabase
+    .channel('private-user-' + uid, { config: { broadcast: { self: false } } })
     .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'notifications',
-      filter: `user_id=eq.${currentUser.id}`
-    }, () => loadNotifications())
+      event: '*',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${uid}`
+    }, (_payload) => {
+      loadNotifications();
+    })
     .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'messages',
-      filter: `receiver_id=eq.${myTeam?.id}`
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `receiver_id=eq.${tmid}`
     }, (payload) => {
-      // Update chat badge regardless of which page we're on
       renderChatBadge();
-      // If chat is open with this sender, append the message live
       if (currentPage === 'chat' && activeChatTeamId === payload.new.sender_id) {
         appendMessage(payload.new);
-        // Mark as read immediately
-        supabase.from('messages').update({ read: true })
-          .eq('id', payload.new.id).then(() => {});
+        supabase.from('messages').update({ read: true }).eq('id', payload.new.id).then(() => {});
       }
     })
-    .subscribe();
+    .subscribe((status, err) => {
+      _privateChannelStatus = status;
+      if (status === 'SUBSCRIBED') {
+        // Channel is live — do an immediate refresh to catch anything missed during setup
+        loadNotifications();
+        renderChatBadge();
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Private channel error, retrying in 3s…', err);
+        setTimeout(() => setupPrivateChannel(), 3000);
+      }
+      if (status === 'CLOSED') {
+        // Reconnect if we're still logged in
+        if (currentUser) setTimeout(() => setupPrivateChannel(), 3000);
+      }
+    });
+}
+
+// ─── POLLING FALLBACK ────────────────────────────────────────────────────────
+// If the realtime channel isn't connected (e.g. RLS blocks it),
+// fall back to polling every 8 seconds for notifications + chat badge.
+let _pollInterval = null;
+function startPollingFallback() {
+  if (_pollInterval) return;
+  _pollInterval = setInterval(async () => {
+    if (!currentUser) return;
+    // Only poll if realtime channel isn't healthy
+    if (_privateChannelStatus === 'SUBSCRIBED') return;
+    await loadNotifications();
+    await renderChatBadge();
+  }, 8000);
+}
+function stopPollingFallback() {
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 }
 
 async function renderChatBadge() {
@@ -2587,6 +2632,8 @@ window.saveProfile = saveProfile;
 window.renderReadyTeams = renderReadyTeams;
 window.setupPrivateChannel = setupPrivateChannel;
 window.renderChatBadge = renderChatBadge;
+window.startPollingFallback = startPollingFallback;
+window.stopPollingFallback = stopPollingFallback;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
