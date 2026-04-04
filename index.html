@@ -8,7 +8,20 @@
 <meta http-equiv="Expires" content="0">
 <title>Flunkyballradar</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js">window.addEventListener('scroll', updateFloatingButtonsVisibility, { passive: true });
+window.addEventListener('resize', () => {
+  updateMobileActionBar();
+  updateFloatingButtonsVisibility();
+});
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('notif-panel');
+  const desktopWrap = document.querySelector('.notif-wrap');
+  const mobileWrap = document.querySelector('.mobile-notif-wrap');
+  if (!panel || !panel.classList.contains('open')) return;
+  if ((desktopWrap && desktopWrap.contains(e.target)) || (mobileWrap && mobileWrap.contains(e.target))) return;
+  panel.classList.remove('open');
+});
+</script>
 <style>
   :root {
     --bg: #080c0a;
@@ -50,10 +63,7 @@
 .logo-img {
   height: 75px;
   width: auto;
-  display: block;
   object-fit: contain;
-  object-position: center;
-  transform: translateY(4px);
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
 }
 
@@ -62,7 +72,7 @@
 }
 
 @media (max-width: 600px) {
-  .logo-img { height: 58px; transform: translateY(3px); }
+  .logo-img { height: 22px; }
 }
 
   nav {
@@ -71,11 +81,10 @@
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border2);
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0.55rem 1.5rem 0.8rem; min-height: 96px;
+    padding: 0 1.5rem; height: 60px;
   }
   .nav-logo {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
-    padding-top: 6px;
     font-family: 'Space Mono', monospace; font-weight: 700;
     font-size: 1.1rem; letter-spacing: 0.04em; color: var(--white);
   }
@@ -391,7 +400,7 @@
 
   
 .empty-logo {
-  height: 150px;
+  height: 55px;
   margin-bottom: 10px;
   opacity: 0.95;
   filter: none;
@@ -434,6 +443,38 @@
   .fairness-high { color: var(--green); }
   .fairness-medium { color: #facc15; }
   .fairness-low { color: var(--red); }
+  .ready-fairness-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;
+    border:1px solid transparent;
+  }
+  .ready-fairness-badge.high { color: var(--green); background:#22c55e18; border-color:#22c55e33; }
+  .ready-fairness-badge.medium { color:#facc15; background:#facc1516; border-color:#facc1530; }
+  .ready-fairness-badge.low { color: var(--red); background:#ef444416; border-color:#ef444430; }
+  .mobile-fab-wrap {
+    position:fixed; right:14px; bottom:14px; z-index:260;
+    display:none; flex-direction:column; align-items:flex-end; gap:10px;
+    transition:opacity .22s ease, transform .22s ease;
+  }
+  .mobile-fab-wrap.hide-fabs {
+    opacity:0; pointer-events:none; transform:translateY(14px);
+  }
+  .mobile-notif-wrap { position:relative; }
+  .mobile-notif-btn {
+    width:52px; height:52px; border-radius:16px; border:1px solid var(--border2);
+    background:var(--card); color:var(--white); cursor:pointer; position:relative;
+    display:inline-flex; align-items:center; justify-content:center; font-size:1rem;
+    box-shadow:0 12px 28px #0008;
+  }
+  .mobile-ready-btn {
+    min-width:min(92vw, 360px); height:56px; border-radius:18px;
+    border:1px solid var(--border2); background:var(--green); color:#080c0a;
+    font-family:'Syne', sans-serif; font-size:0.95rem; font-weight:800;
+    letter-spacing:0.02em; box-shadow:0 14px 32px #0008; cursor:pointer; padding:0 18px;
+  }
+  .mobile-ready-btn.off { background:var(--card2); color:var(--text); }
+  .mobile-ready-btn.on { background:var(--green); color:#080c0a; }
+  .mobile-ready-btn.busy { background:#7f1d1d; color:#fecaca; border:1px solid #ef444466; }
   .chat-search-wrap { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
   .chat-search-input {
     width:100%; background:var(--bg2); border:1px solid var(--border);
@@ -520,7 +561,7 @@
     .nav-links { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
     .nav-links::-webkit-scrollbar { display: none; }
     .nav-link { flex: 0 0 auto; white-space: nowrap; padding: 7px 10px; font-size: 0.74rem; }
-    .page { padding: 1rem 0.85rem 1.4rem; }
+    .page { padding: 1rem 0.85rem 6.8rem; }
     .ready-grid { grid-template-columns: 1fr; }
     .active-match-row { grid-template-columns: 1fr; gap: 0.75rem; }
     .active-match-timer { text-align: left; display: flex; align-items: center; justify-content: space-between; }
@@ -534,6 +575,20 @@
     .chat-sidebar { max-height: 220px; }
     .chat-main { min-height: 58vh; }
     .active-game-banner { flex-direction: column; align-items: stretch; }
+
+    #nav-loggedin .notif-wrap,
+    #nav-loggedin #ready-btn,
+    #nav-loggedin #ready-status-text { display:none !important; }
+
+    .mobile-fab-wrap { display:flex; }
+
+    .notif-panel {
+      top:auto;
+      bottom:62px;
+      right:0;
+      left:auto;
+      width:min(320px, calc(100vw - 24px));
+    }
   }
 </style>
 </head>
@@ -572,6 +627,12 @@
     </div>
   </div>
 </nav>
+<div class="mobile-fab-wrap hidden-force" id="mobile-fab-wrap">
+  <div class="mobile-notif-wrap">
+    <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
+  </div>
+  <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="toggleReady()">Bereit stellen</button>
+</div>
 
 <!-- ── HOME PAGE ── -->
 <div class="page active" id="page-home">
@@ -686,10 +747,7 @@
           <div class="stat-box"><div class="stat-val stat-alert" id="prof-deadline-missed">0</div><div class="stat-label">Frist verpeilt</div></div>
           <div class="stat-box"><div class="stat-val stat-alert" id="prof-no-show">0</div><div class="stat-label">Nicht angetreten</div></div>
           <div class="stat-box"><div class="stat-val stat-alert" id="prof-result-conflicts">0</div><div class="stat-label">Ergebniskonflikte</div></div>
-          <div class="stat-box">
-            <div class="stat-val fairness-high" id="prof-fairness-level">Hoch</div>
-            <div class="stat-label">Fairness</div>
-          </div>
+          <div class="stat-box"><div class="stat-val fairness-high" id="prof-fairness-level">Hoch</div><div class="stat-label">Fairness</div></div>
         </div>
         <div class="mini-note" id="prof-fairness-note">Fairness-Score: 100 / 100</div>
       </div>
@@ -1253,6 +1311,8 @@ async function loadAllData() {
     loadNotifications()
   ]);
   if (currentPage === 'chat' && currentUser && myTeam) renderChatContacts();
+  updateMobileActionBar();
+  updateFloatingButtonsVisibility();
 }
 
 async function loadOutgoingPendingChallenges() {
@@ -1284,7 +1344,7 @@ async function loadReadyTeams() {
   if (error || !data || data.length === 0) {
     const count = document.getElementById('ready-count');
     if (count) count.textContent = '0 Teams';
-    grid.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo"><div>Noch keine Teams bereit.</div><br><small>Melde dich an und stelle dich bereit!</small></div>`;
+    grid.innerHTML = `<div class="empty-state"><img src="flascheweiß.png" class="empty-logo"><div>Noch keine Teams bereit.</div></div>`;
     return;
   }
 
@@ -1314,6 +1374,8 @@ async function loadReadyTeams() {
       btnLabel = 'Gesperrt';
     }
 
+    const fairnessInfo = getReadyTeamFairness(t);
+
     return `
       <div class="ready-card ${isMe ? 'my-team' : ''} ${!isMe && !canChallenge ? 'locked' : ''}">
         <div class="team-avatar">${t.emoji || '🍺'}</div>
@@ -1327,6 +1389,9 @@ async function loadReadyTeams() {
             · 👥 ${r.spieler || 4}
             ${r.uhrzeit ? `· 🕐 ${r.uhrzeit}` : ''}
             ${r.ort || t.ort ? `· 📍 ${r.ort || t.ort}` : ''}
+          </div>
+          <div class="ready-meta" style="margin-top:6px">
+            <span class="ready-fairness-badge ${fairnessInfo.shortClass}">${fairnessInfo.label}</span>
           </div>
           ${btnTitle ? `<div style="font-size:0.72rem;color:#f97316;margin-top:4px">${btnTitle}</div>` : ''}
         </div>
@@ -1494,40 +1559,77 @@ function calculateFairnessFromHistory(team, games) {
   score = Math.max(0, Math.min(100, score));
 
   let cleanStreak = 0;
-  const orderedGames = [...(games || [])].reverse();
+  const chronologicalGames = [...(games || [])].reverse();
 
-  for (const game of orderedGames) {
+  for (const game of chronologicalGames) {
     const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
-
     if (hasViolation) {
       cleanStreak = 0;
       continue;
     }
-
     cleanStreak += 1;
-    if (cleanStreak >= 3) {
-      score = Math.min(100, score + 20);
-    }
+    if (cleanStreak >= 3) score = Math.min(100, score + 20);
   }
 
   let level = 'Hoch';
   let className = 'fairness-high';
-
+  let shortClass = 'high';
   if (score < 70) {
     level = 'Mittel';
     className = 'fairness-medium';
+    shortClass = 'medium';
   }
   if (score < 40) {
     level = 'Niedrig';
     className = 'fairness-low';
+    shortClass = 'low';
   }
 
-  return {
-    score,
-    level,
-    className,
-    resultConflicts
-  };
+  return { score, level, className, shortClass, resultConflicts };
+}
+
+function getReadyTeamFairness(team) {
+  const score = Number.isFinite(team?.fairness_score_cached) ? team.fairness_score_cached : 100;
+  if (score >= 70) return { label: 'Fairness Hoch', shortClass: 'high' };
+  if (score >= 40) return { label: 'Fairness Mittel', shortClass: 'medium' };
+  return { label: 'Fairness Niedrig', shortClass: 'low' };
+}
+
+function updateMobileActionBar() {
+  const wrap = document.getElementById('mobile-fab-wrap');
+  const readyBtn = document.getElementById('mobile-ready-btn');
+  const desktopBadge = document.getElementById('notification-badge');
+  const mobileBadge = document.getElementById('mobile-notification-badge');
+  if (!wrap || !readyBtn) return;
+
+  const loggedIn = !!(currentUser && myTeam);
+  const isMobile = window.innerWidth <= 600;
+  wrap.classList.toggle('hidden-force', !(loggedIn && isMobile));
+
+  if (desktopBadge && mobileBadge) {
+    mobileBadge.textContent = desktopBadge.textContent || '';
+    mobileBadge.style.display = desktopBadge.style.display || 'none';
+  }
+
+  if (!loggedIn) return;
+
+  if (activeMatch) {
+    readyBtn.className = 'mobile-ready-btn busy';
+    readyBtn.textContent = '🔴 Im Match';
+  } else if (isReady) {
+    readyBtn.className = 'mobile-ready-btn on';
+    readyBtn.textContent = '● Bereit rückgängig';
+  } else {
+    readyBtn.className = 'mobile-ready-btn off';
+    readyBtn.textContent = 'Bereit stellen';
+  }
+}
+
+function updateFloatingButtonsVisibility() {
+  const wrap = document.getElementById('mobile-fab-wrap');
+  if (!wrap || wrap.classList.contains('hidden-force') || window.innerWidth > 600) return;
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 40;
+  wrap.classList.toggle('hide-fabs', nearBottom);
 }
 
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
@@ -1557,7 +1659,6 @@ async function loadProfile(team) {
     document.getElementById('edit-emoji').value = team.emoji || '🍺';
   }
 
-  // Load match history
   const { data: games } = await supabase
     .from('games')
     .select('*, team_a:team_a_id(name), team_b:team_b_id(name)')
@@ -1566,16 +1667,21 @@ async function loadProfile(team) {
     .limit(20);
 
   const fairness = calculateFairnessFromHistory(team, games || []);
+  team.fairness_score_cached = fairness.score;
+  if (myTeam && team.id === myTeam.id) myTeam.fairness_score_cached = fairness.score;
+
   document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
-  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro Match`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
   document.getElementById('profile-history-list').innerHTML = games?.length
     ? games.map(g => renderGameRow(g, team.id)).join('')
     : '<div class="mini-note">Noch keine Matchhistory.</div>';
+
+  if (currentPage === 'home') loadReadyTeams();
 }
 
 function renderGameRow(g, teamId) {
@@ -1651,26 +1757,36 @@ function updateReadyUI() {
   const label = document.getElementById('ready-status-label');
   const dot = document.getElementById('status-dot');
   if (!btn) return;
+
   if (!currentUser || !myTeam) {
-    btn.className = 'btn-ready off'; btn.textContent = 'Bereit stellen';
+    btn.className = 'btn-ready off';
+    btn.textContent = 'Bereit stellen';
+    updateMobileActionBar();
     return;
   }
   if (activeMatch) {
-    btn.className = 'btn-ready busy'; btn.textContent = '🔴 Im Match';
+    btn.className = 'btn-ready busy';
+    btn.textContent = '🔴 Im Match';
     label.textContent = 'Im Match';
-    dot.style.background = 'var(--red)'; dot.style.boxShadow = '0 0 6px var(--red)';
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow = '0 0 6px var(--red)';
+    updateMobileActionBar();
     return;
   }
   if (isReady) {
-    btn.className = 'btn-ready on'; btn.textContent = '● Bereit rückgängig';
+    btn.className = 'btn-ready on';
+    btn.textContent = '● Bereit rückgängig';
     label.textContent = 'Bereit';
     dot.className = 'status-dot ready';
   } else {
-    btn.className = 'btn-ready off'; btn.textContent = 'Bereit stellen';
+    btn.className = 'btn-ready off';
+    btn.textContent = 'Bereit stellen';
     label.textContent = 'Offline';
     dot.className = 'status-dot offline';
-    dot.style.background = ''; dot.style.boxShadow = '';
+    dot.style.background = '';
+    dot.style.boxShadow = '';
   }
+  updateMobileActionBar();
 }
 
 async function toggleReady() {
@@ -2049,16 +2165,22 @@ async function loadNotifications() {
 function renderNotifications(items) {
   const list = document.getElementById('notif-list');
   const badge = document.getElementById('notification-badge');
+  const mobileBadge = document.getElementById('mobile-notification-badge');
   if (!list || !badge) return;
   const unread = items.filter(n => !n.read).length;
   badge.style.display = unread ? 'inline-flex' : 'none';
   badge.textContent = unread;
+  if (mobileBadge) {
+    mobileBadge.style.display = badge.style.display;
+    mobileBadge.textContent = unread;
+  }
   list.innerHTML = items.length ? items.map(n => `
     <div class="notif-item" onclick="openNotification(${n.id},'${n.type}','${n.related_id}')">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
   `).join('') : '<div class="notif-item"><div class="notif-sub">Keine neuen Benachrichtigungen.</div></div>';
+  updateMobileActionBar();
 }
 
 async function openNotification(id, type, relatedId) {
@@ -2099,8 +2221,20 @@ async function openNotification(id, type, relatedId) {
 }
 
 function toggleNotifications(e) {
-  e.stopPropagation();
-  document.getElementById('notif-panel').classList.toggle('open');
+  e?.stopPropagation?.();
+  const panel = document.getElementById('notif-panel');
+  panel.classList.toggle('open');
+  if (window.innerWidth <= 600) {
+    panel.style.top = 'auto';
+    panel.style.bottom = '62px';
+    panel.style.right = '0';
+    panel.style.left = 'auto';
+  } else {
+    panel.style.top = '';
+    panel.style.bottom = '';
+    panel.style.right = '0';
+    panel.style.left = 'auto';
+  }
 }
 
 // ─── CHAT ─────────────────────────────────────────────────────────────────────
