@@ -1286,11 +1286,14 @@ async function syncAuthState(session) {
       challengedTeamIds = new Set();
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       stopPollingFallback();
+      if (_matchChannelA) { supabase.removeChannel(_matchChannelA); _matchChannelA = null; }
+      if (_matchChannelB) { supabase.removeChannel(_matchChannelB); _matchChannelB = null; }
     }
 
     updateNavAuth();
     updateAuthViews();
     setupPrivateChannel();
+    setupMatchChannel();
     startPollingFallback();
     await loadAllData();
     if (myTeam) renderChatBadge();
@@ -2456,7 +2459,7 @@ document.addEventListener('visibilitychange', async () => {
 
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
 
-// Public channel: ready_teams, matches, games, leaderboard
+// Channel 1: public tables without filters (ready_teams, games, teams, all matches)
 supabase.channel('public-data')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, async () => {
     await syncReadyState();
@@ -2468,7 +2471,6 @@ supabase.channel('public-data')
     await loadActiveMatches();
     if (myTeam) {
       await loadActiveMatch();
-      // Reload myTeam so points/liga stay fresh after match resolution
       const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
       if (data) { myTeam = data; updateNavAuth(); }
     }
@@ -2479,14 +2481,59 @@ supabase.channel('public-data')
   })
   .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
     loadLeaderboard(currentLBFilter);
-    // Keep myTeam in sync if our own row changed
     if (myTeam && payload.new?.id === myTeam.id) {
       myTeam = payload.new;
       updateNavAuth();
       updateReadyUI();
     }
   })
-  .subscribe();
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      // Sofort nach Subscribe alles frisch laden
+      loadReadyTeams();
+      loadActiveMatches();
+      loadGames(currentLiga);
+    }
+  });
+
+// Channel 2: matches gefiltert auf mein Team (team_a oder team_b)
+// Wird nach Login neu aufgebaut via setupMatchChannel()
+let _matchChannelA = null;
+let _matchChannelB = null;
+
+function setupMatchChannel() {
+  if (_matchChannelA) { supabase.removeChannel(_matchChannelA); _matchChannelA = null; }
+  if (_matchChannelB) { supabase.removeChannel(_matchChannelB); _matchChannelB = null; }
+  if (!myTeam) return;
+
+  const handleMatchChange = async () => {
+    await loadOutgoingPendingChallenges();
+    await loadActiveMatch();
+    loadReadyTeams();
+    await loadActiveMatches();
+    const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
+    if (data) { myTeam = data; updateNavAuth(); }
+  };
+
+  // Supabase erlaubt nur einen Filter pro Channel — daher zwei Channels
+  _matchChannelA = supabase.channel('match-as-a-' + myTeam.id)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'matches',
+      filter: `team_a_id=eq.${myTeam.id}`
+    }, handleMatchChange)
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') loadActiveMatch();
+    });
+
+  _matchChannelB = supabase.channel('match-as-b-' + myTeam.id)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'matches',
+      filter: `team_b_id=eq.${myTeam.id}`
+    }, handleMatchChange)
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') loadActiveMatch();
+    });
+}
 
 // ─── PRIVATE REALTIME CHANNEL ────────────────────────────────────────────────
 // Handles notifications + messages for the logged-in user.
@@ -2553,10 +2600,14 @@ function startPollingFallback() {
   if (_pollInterval) return;
   _pollInterval = setInterval(async () => {
     if (!currentUser) return;
-    // Only poll if realtime channel isn't healthy
-    if (_privateChannelStatus === 'SUBSCRIBED') return;
-    await loadNotifications();
-    await renderChatBadge();
+    // Always poll for ready teams and active match (lightweight, critical for UX)
+    loadReadyTeams();
+    if (myTeam) await loadActiveMatch();
+    // Only poll notifications/badge if realtime channel isn't healthy
+    if (_privateChannelStatus !== 'SUBSCRIBED') {
+      await loadNotifications();
+      await renderChatBadge();
+    }
   }, 8000);
 }
 function stopPollingFallback() {
@@ -2631,6 +2682,7 @@ window.toggleHistory = toggleHistory;
 window.saveProfile = saveProfile;
 window.renderReadyTeams = renderReadyTeams;
 window.setupPrivateChannel = setupPrivateChannel;
+window.setupMatchChannel = setupMatchChannel;
 window.renderChatBadge = renderChatBadge;
 window.startPollingFallback = startPollingFallback;
 window.stopPollingFallback = stopPollingFallback;
