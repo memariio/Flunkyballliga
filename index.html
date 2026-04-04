@@ -2414,7 +2414,8 @@ supabase.channel('public-data')
 
 // close notif panel on outside click
 document.addEventListener('click', e => {
-  if (!e.target.closest('.notif-wrap')) document.getElementById('notif-panel')?.classList.remove('open');
+  if (!e.target.closest('.notif-wrap') && !e.target.closest('.mobile-notif-wrap'))
+    document.getElementById('notif-panel')?.classList.remove('open');
 });
 
 // ─── SQL SETUP HELPER ─────────────────────────────────────────────────────────
