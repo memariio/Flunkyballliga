@@ -560,7 +560,7 @@ document.addEventListener('visibilitychange', async () => {
   }
   .notif-panel.open { display: block; }
   .notif-header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-weight: 800; }
-  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; pointer-events: auto; user-select: none; }
   .notif-item:hover { background: var(--card2); }
   .notif-item:last-child { border-bottom: none; }
   .notif-title { font-weight: 700; color: var(--white); font-size: 0.88rem; }
@@ -1817,7 +1817,7 @@ function bindNotificationDelegation() {
     if (!list) return;
     if (!list.dataset.boundNotifications) {
       list.addEventListener('click', handler);
-      list.addEventListener('touchend', handler, { passive: false });
+      list.addEventListener('pointerup', handler);
       list.dataset.boundNotifications = '1';
     }
   });
@@ -2387,7 +2387,7 @@ function renderNotifications(items) {
   updateMobileActionBar();
 }
 
-async function openNotification(id, type, relatedId) {
+async async function openNotification(id, type, relatedId) {
   try {
     await supabase.from('notifications').update({ read: true }).eq('id', id);
   } catch (e) {
