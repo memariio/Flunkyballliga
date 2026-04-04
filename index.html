@@ -2387,7 +2387,7 @@ function renderNotifications(items) {
   updateMobileActionBar();
 }
 
-async async function openNotification(id, type, relatedId) {
+async function openNotification(id, type, relatedId) {
   try {
     await supabase.from('notifications').update({ read: true }).eq('id', id);
   } catch (e) {
