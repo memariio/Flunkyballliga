@@ -1084,16 +1084,6 @@ function formatTimer(secs) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
-// Calculate remaining seconds from server timestamp instead of counting down locally.
-// activated_at is stored in created_at when a match is accepted.
-// duration_seconds is stored in timer_seconds at match start (48h or 96h if extended).
-function getRemainingSeconds(match) {
-  const activatedAt = match.activated_at ? new Date(match.activated_at) : new Date(match.created_at);
-  const durationSecs = match.timer_seconds || 48 * 3600;
-  const elapsedSecs = (Date.now() - activatedAt.getTime()) / 1000;
-  return Math.max(0, Math.floor(durationSecs - elapsedSecs));
-}
-
 function startActiveMatchesTimers() {
   if (activeMatchesTimerInterval) {
     clearInterval(activeMatchesTimerInterval);
@@ -1103,9 +1093,14 @@ function startActiveMatchesTimers() {
   if (!allActiveMatches || allActiveMatches.length === 0) return;
 
   activeMatchesTimerInterval = setInterval(() => {
+    allActiveMatches = allActiveMatches.map(match => ({
+      ...match,
+      timer_seconds: Math.max(0, (match.timer_seconds || 0) - 1)
+    }));
+
     allActiveMatches.forEach(match => {
       const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"]`);
-      if (el) el.textContent = formatTimer(getRemainingSeconds(match));
+      if (el) el.textContent = formatTimer(match.timer_seconds || 0);
     });
   }, 1000);
 }
@@ -1499,7 +1494,7 @@ async function loadActiveMatches() {
 
   count.textContent = `${data.length} Matches`;
   list.innerHTML = data.map(m => {
-    const secs = getRemainingSeconds(m);
+    const secs = m.timer_seconds || 0;
     return `
       <div class="active-match-row">
         <div class="active-match-main">
@@ -1611,7 +1606,7 @@ async function loadActiveMatch() {
     .maybeSingle();
   activeMatch = data || null;
   if (activeMatch) {
-    timerSeconds = getRemainingSeconds(activeMatch);
+    timerSeconds = activeMatch.timer_seconds || 0;
     resultSubmitted = !!(myTeam.id === activeMatch.team_a_id ? activeMatch.team_a_result : activeMatch.team_b_result);
     startTimer();
   } else {
@@ -1621,74 +1616,46 @@ async function loadActiveMatch() {
   updateReadyUI();
 }
 
-// ─── FAIRNESS SYSTEM ─────────────────────────────────────────────────────────
-// Score starts at 100.
-// Deductions (from team counters stored in DB):
-//   deadline_missed : -15 per occurrence
-//   no_show         : -25 per occurrence
-//   conflict        : -10 per occurrence (counted from games history)
-//
-// Recovery (from chronological game history, oldest → newest):
-//   A "clean" game = status 'finished' or 'normal' (no violation).
-//   Once a streak of 3 clean games is reached, each *additional* clean game
-//   after that gives +5 back (capped at 100).
-//   A single violation resets the streak to 0.
-//
-// The computed score is written back to teams.fairness_score so it persists
-// and is available for the ready-teams grid without opening a profile.
-
 function calculateFairnessFromHistory(team, games) {
   const deadlineMissed = team?.deadline_missed || 0;
-  const noShow         = team?.no_show || 0;
-  const sortedGames    = [...(games || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const resultConflicts = sortedGames.filter(g => g.status === 'conflict').length;
+  const noShow = team?.no_show || 0;
+  const resultConflicts = (games || []).filter(g => g.status === 'conflict').length;
 
-  // Base deductions
-  let score = 100
-    - (deadlineMissed * 15)
-    - (noShow         * 25)
-    - (resultConflicts * 10);
+  let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
   score = Math.max(0, Math.min(100, score));
 
-  // Recovery: streak must reach 3 before any bonus kicks in;
-  // every clean game *after* the 3rd gives +5 (not +20 per game)
   let cleanStreak = 0;
-  for (const game of sortedGames) {
-    const isViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
-    if (isViolation) {
+  const chronologicalGames = [...(games || [])].reverse();
+
+  for (const game of chronologicalGames) {
+    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
+    if (hasViolation) {
       cleanStreak = 0;
-    } else {
-      cleanStreak++;
-      // Only reward from the 4th clean game onward (streak > 3)
-      if (cleanStreak > 3) {
-        score = Math.min(100, score + 5);
-      }
+      continue;
     }
+    cleanStreak += 1;
+    if (cleanStreak >= 3) score = Math.min(100, score + 20);
   }
 
-  score = Math.max(0, Math.min(100, score));
-
-  let level      = 'Hoch';
-  let className  = 'fairness-high';
+  let level = 'Hoch';
+  let className = 'fairness-high';
   let shortClass = 'high';
-  if (score < 70) { level = 'Mittel';   className = 'fairness-medium'; shortClass = 'medium'; }
-  if (score < 40) { level = 'Niedrig';  className = 'fairness-low';    shortClass = 'low'; }
+  if (score < 70) {
+    level = 'Mittel';
+    className = 'fairness-medium';
+    shortClass = 'medium';
+  }
+  if (score < 40) {
+    level = 'Niedrig';
+    className = 'fairness-low';
+    shortClass = 'low';
+  }
 
   return { score, level, className, shortClass, resultConflicts };
 }
 
-// Persist fairness score to DB so it's available everywhere without opening profiles
-async function persistFairnessScore(teamId, score) {
-  await supabase.from('teams').update({ fairness_score: score }).eq('id', teamId);
-}
-
 function getReadyTeamFairness(team) {
-  // Prefer persisted DB value (fairness_score), fall back to cached, then 100
-  const score = Number.isFinite(team?.fairness_score)
-    ? team.fairness_score
-    : Number.isFinite(team?.fairness_score_cached)
-      ? team.fairness_score_cached
-      : 100;
+  const score = Number.isFinite(team?.fairness_score_cached) ? team.fairness_score_cached : 100;
   if (score >= 70) return { label: 'Fairness Hoch', shortClass: 'high' };
   if (score >= 40) return { label: 'Fairness Mittel', shortClass: 'medium' };
   return { label: 'Fairness Niedrig', shortClass: 'low' };
@@ -1767,18 +1734,12 @@ async function loadProfile(team) {
 
   const fairness = calculateFairnessFromHistory(team, games || []);
   team.fairness_score_cached = fairness.score;
-  team.fairness_score = fairness.score;
-  if (myTeam && team.id === myTeam.id) {
-    myTeam.fairness_score_cached = fairness.score;
-    myTeam.fairness_score = fairness.score;
-  }
-  // Persist to DB so ready-teams grid and other views always have the current score
-  persistFairnessScore(team.id, fairness.score);
+  if (myTeam && team.id === myTeam.id) myTeam.fairness_score_cached = fairness.score;
 
   document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
-  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Abzug: Frist verpasst −15, No-Show −25, Konflikt −10 · Bonus ab 4. sauberem Match in Folge: +5`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
@@ -2004,32 +1965,10 @@ async function respondChallenge(accepted) {
   }
 
   if (accepted) {
-    const now = new Date().toISOString();
-
-    // Update match to active and fetch the fresh row with all joins in one step
-    const { data: activeMatchData } = await supabase
-      .from('matches')
-      .update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now })
-      .eq('id', pendingChallengeMatchId)
-      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-      .single();
-
-    const teamAId = activeMatchData?.team_a_id || match.team_a_id;
-    const teamBId = activeMatchData?.team_b_id || match.team_b_id;
-
-    await supabase.from('ready_teams').delete().in('team_id', [teamAId, teamBId]);
+    await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, created_at: new Date().toISOString() }).eq('id', pendingChallengeMatchId);
+    await supabase.from('ready_teams').delete().in('team_id', [match.team_a_id, match.team_b_id]);
     isReady = false;
-
-    // Set activeMatch directly — no need for another DB round-trip
-    if (activeMatchData) {
-      activeMatch = activeMatchData;
-      timerSeconds = getRemainingSeconds(activeMatch);
-      resultSubmitted = false;
-      startTimer();
-      refreshActiveMatchUI();
-    }
     updateReadyUI();
-
     if (match.team_a?.user_id) {
       await supabase.from('notifications').insert({
         user_id: match.team_a.user_id,
@@ -2042,6 +1981,7 @@ async function respondChallenge(accepted) {
     }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
+    await loadActiveMatch();
     loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
@@ -2085,66 +2025,18 @@ function refreshActiveMatchUI() {
 function startTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   timerInterval = setInterval(async () => {
-    if (!activeMatch) { clearInterval(timerInterval); timerInterval = null; return; }
-    // Always derive remaining time from server timestamp — never drift on reload
-    timerSeconds = getRemainingSeconds(activeMatch);
+    timerSeconds = Math.max(0, timerSeconds - 1);
     const el = document.getElementById('main-timer');
     if (el) el.textContent = formatTimer(timerSeconds);
+    // update timer in db every 60s
+    if (timerSeconds % 60 === 0 && activeMatch) {
+      await supabase.from('matches').update({ timer_seconds: timerSeconds }).eq('id', activeMatch.id);
+    }
     if (timerSeconds <= 0) {
       clearInterval(timerInterval); timerInterval = null;
       showToast('⏰ Zeit abgelaufen! Bitte Ergebnis eintragen.');
-      await handleMatchDeadline();
     }
   }, 1000);
-}
-
-async function handleMatchDeadline() {
-  if (!activeMatch || !myTeam) return;
-  // Reload match to get latest results
-  const { data: match } = await supabase
-    .from('matches')
-    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-    .eq('id', activeMatch.id)
-    .maybeSingle();
-  if (!match || match.status !== 'active') return;
-
-  const a = match.team_a_result;
-  const b = match.team_b_result;
-  // Only the side that hasn't submitted gets penalized
-  // Determine winner side based on who submitted
-  let winnerSide = null;
-  let label = 'Frist abgelaufen';
-  let status = 'deadline';
-
-  if (!a && !b) {
-    // Neither submitted → both lose 1 point, no winner
-    winnerSide = null;
-  } else if (a && !b) {
-    // Only team A submitted → team A wins by default
-    winnerSide = 'A';
-  } else if (!a && b) {
-    // Only team B submitted → team B wins by default
-    winnerSide = 'B';
-  } else {
-    // Both submitted but timer ran out — evaluate normally
-    await evaluateMatch(match);
-    return;
-  }
-
-  const { data, error } = await supabase.rpc('resolve_match_outcome', {
-    p_match_id: match.id,
-    p_winner_side: winnerSide,
-    p_label: label,
-    p_status: status
-  });
-  if (error && !data?.already_finished) {
-    console.error('Deadline resolution error:', error);
-    return;
-  }
-  const msg = winnerSide
-    ? '⏰ Zeit abgelaufen! Ihr gewinnt, da der Gegner kein Ergebnis eingetragen hat.'
-    : '⏰ Zeit abgelaufen! Beide Teams erhalten −1 Punkt.';
-  await finishMatchCleanup(match, msg);
 }
 
 async function submitMatchResult(result) {
@@ -2187,8 +2079,14 @@ async function finishMatchCleanup(match, toastMessage) {
   showToast(toastMessage);
   activeMatch = null;
   isReady = false;
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  if (activeMatchesTimerInterval) { clearInterval(activeMatchesTimerInterval); activeMatchesTimerInterval = null; }
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (activeMatchesTimerInterval) {
+    clearInterval(activeMatchesTimerInterval);
+    activeMatchesTimerInterval = null;
+  }
   refreshActiveMatchUI();
   updateReadyUI();
 
@@ -2201,30 +2099,7 @@ async function finishMatchCleanup(match, toastMessage) {
     }
   }
 
-  // Recalculate and persist fairness score for BOTH teams after every match
-  await recalcAndPersistFairness(match.team_a_id);
-  await recalcAndPersistFairness(match.team_b_id);
-
   await loadAllData();
-}
-
-// Fetch team + game history and persist the freshly calculated fairness score
-async function recalcAndPersistFairness(teamId) {
-  if (!teamId) return;
-  const [{ data: team }, { data: games }] = await Promise.all([
-    supabase.from('teams').select('*').eq('id', teamId).maybeSingle(),
-    supabase.from('games').select('*')
-      .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
-      .order('created_at', { ascending: true })
-  ]);
-  if (!team) return;
-  const fairness = calculateFairnessFromHistory(team, games || []);
-  await persistFairnessScore(teamId, fairness.score);
-  // Keep local myTeam in sync
-  if (myTeam && myTeam.id === teamId) {
-    myTeam.fairness_score = fairness.score;
-    myTeam.fairness_score_cached = fairness.score;
-  }
 }
 
 async function evaluateMatch(match) {
@@ -2331,10 +2206,7 @@ async function respondExtend(accepted) {
   closeModal('incoming-extend');
   if (!pendingExtendMatchId) return;
   if (accepted) {
-    // Reset activated_at to now with 96h duration so getRemainingSeconds calculates correctly
-    const extendNow = new Date().toISOString();
-    await supabase.from('matches').update({ timer_seconds: 96*3600, activated_at: extendNow, created_at: extendNow }).eq('id', pendingExtendMatchId);
-    if (activeMatch) { activeMatch.activated_at = extendNow; activeMatch.timer_seconds = 96*3600; }
+    await supabase.from('matches').update({ timer_seconds: 96*3600 }).eq('id', pendingExtendMatchId);
     timerSeconds = 96*3600;
     showToast('✅ Verlängerung angenommen. Frist +48h.');
   } else {
@@ -2824,9 +2696,6 @@ window.setupMatchChannel = setupMatchChannel;
 window.renderChatBadge = renderChatBadge;
 window.startPollingFallback = startPollingFallback;
 window.stopPollingFallback = stopPollingFallback;
-window.handleMatchDeadline = handleMatchDeadline;
-window.recalcAndPersistFairness = recalcAndPersistFairness;
-window.persistFairnessScore = persistFairnessScore;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
