@@ -1084,6 +1084,16 @@ function formatTimer(secs) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
+// Calculate remaining seconds from server timestamp instead of counting down locally.
+// activated_at is stored in created_at when a match is accepted.
+// duration_seconds is stored in timer_seconds at match start (48h or 96h if extended).
+function getRemainingSeconds(match) {
+  const activatedAt = match.activated_at ? new Date(match.activated_at) : new Date(match.created_at);
+  const durationSecs = match.timer_seconds || 48 * 3600;
+  const elapsedSecs = (Date.now() - activatedAt.getTime()) / 1000;
+  return Math.max(0, Math.floor(durationSecs - elapsedSecs));
+}
+
 function startActiveMatchesTimers() {
   if (activeMatchesTimerInterval) {
     clearInterval(activeMatchesTimerInterval);
@@ -1093,14 +1103,9 @@ function startActiveMatchesTimers() {
   if (!allActiveMatches || allActiveMatches.length === 0) return;
 
   activeMatchesTimerInterval = setInterval(() => {
-    allActiveMatches = allActiveMatches.map(match => ({
-      ...match,
-      timer_seconds: Math.max(0, (match.timer_seconds || 0) - 1)
-    }));
-
     allActiveMatches.forEach(match => {
       const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"]`);
-      if (el) el.textContent = formatTimer(match.timer_seconds || 0);
+      if (el) el.textContent = formatTimer(getRemainingSeconds(match));
     });
   }, 1000);
 }
@@ -1494,7 +1499,7 @@ async function loadActiveMatches() {
 
   count.textContent = `${data.length} Matches`;
   list.innerHTML = data.map(m => {
-    const secs = m.timer_seconds || 0;
+    const secs = getRemainingSeconds(m);
     return `
       <div class="active-match-row">
         <div class="active-match-main">
@@ -1606,7 +1611,7 @@ async function loadActiveMatch() {
     .maybeSingle();
   activeMatch = data || null;
   if (activeMatch) {
-    timerSeconds = activeMatch.timer_seconds || 0;
+    timerSeconds = getRemainingSeconds(activeMatch);
     resultSubmitted = !!(myTeam.id === activeMatch.team_a_id ? activeMatch.team_a_result : activeMatch.team_b_result);
     startTimer();
   } else {
@@ -1965,7 +1970,8 @@ async function respondChallenge(accepted) {
   }
 
   if (accepted) {
-    await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, created_at: new Date().toISOString() }).eq('id', pendingChallengeMatchId);
+    const now = new Date().toISOString();
+    await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now }).eq('id', pendingChallengeMatchId);
     await supabase.from('ready_teams').delete().in('team_id', [match.team_a_id, match.team_b_id]);
     isReady = false;
     updateReadyUI();
@@ -2025,18 +2031,66 @@ function refreshActiveMatchUI() {
 function startTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   timerInterval = setInterval(async () => {
-    timerSeconds = Math.max(0, timerSeconds - 1);
+    if (!activeMatch) { clearInterval(timerInterval); timerInterval = null; return; }
+    // Always derive remaining time from server timestamp — never drift on reload
+    timerSeconds = getRemainingSeconds(activeMatch);
     const el = document.getElementById('main-timer');
     if (el) el.textContent = formatTimer(timerSeconds);
-    // update timer in db every 60s
-    if (timerSeconds % 60 === 0 && activeMatch) {
-      await supabase.from('matches').update({ timer_seconds: timerSeconds }).eq('id', activeMatch.id);
-    }
     if (timerSeconds <= 0) {
       clearInterval(timerInterval); timerInterval = null;
       showToast('⏰ Zeit abgelaufen! Bitte Ergebnis eintragen.');
+      await handleMatchDeadline();
     }
   }, 1000);
+}
+
+async function handleMatchDeadline() {
+  if (!activeMatch || !myTeam) return;
+  // Reload match to get latest results
+  const { data: match } = await supabase
+    .from('matches')
+    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+    .eq('id', activeMatch.id)
+    .maybeSingle();
+  if (!match || match.status !== 'active') return;
+
+  const a = match.team_a_result;
+  const b = match.team_b_result;
+  // Only the side that hasn't submitted gets penalized
+  // Determine winner side based on who submitted
+  let winnerSide = null;
+  let label = 'Frist abgelaufen';
+  let status = 'deadline';
+
+  if (!a && !b) {
+    // Neither submitted → both lose 1 point, no winner
+    winnerSide = null;
+  } else if (a && !b) {
+    // Only team A submitted → team A wins by default
+    winnerSide = 'A';
+  } else if (!a && b) {
+    // Only team B submitted → team B wins by default
+    winnerSide = 'B';
+  } else {
+    // Both submitted but timer ran out — evaluate normally
+    await evaluateMatch(match);
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('resolve_match_outcome', {
+    p_match_id: match.id,
+    p_winner_side: winnerSide,
+    p_label: label,
+    p_status: status
+  });
+  if (error && !data?.already_finished) {
+    console.error('Deadline resolution error:', error);
+    return;
+  }
+  const msg = winnerSide
+    ? '⏰ Zeit abgelaufen! Ihr gewinnt, da der Gegner kein Ergebnis eingetragen hat.'
+    : '⏰ Zeit abgelaufen! Beide Teams erhalten −1 Punkt.';
+  await finishMatchCleanup(match, msg);
 }
 
 async function submitMatchResult(result) {
@@ -2206,7 +2260,10 @@ async function respondExtend(accepted) {
   closeModal('incoming-extend');
   if (!pendingExtendMatchId) return;
   if (accepted) {
-    await supabase.from('matches').update({ timer_seconds: 96*3600 }).eq('id', pendingExtendMatchId);
+    // Reset activated_at to now with 96h duration so getRemainingSeconds calculates correctly
+    const extendNow = new Date().toISOString();
+    await supabase.from('matches').update({ timer_seconds: 96*3600, activated_at: extendNow, created_at: extendNow }).eq('id', pendingExtendMatchId);
+    if (activeMatch) { activeMatch.activated_at = extendNow; activeMatch.timer_seconds = 96*3600; }
     timerSeconds = 96*3600;
     showToast('✅ Verlängerung angenommen. Frist +48h.');
   } else {
@@ -2696,6 +2753,7 @@ window.setupMatchChannel = setupMatchChannel;
 window.renderChatBadge = renderChatBadge;
 window.startPollingFallback = startPollingFallback;
 window.stopPollingFallback = stopPollingFallback;
+window.handleMatchDeadline = handleMatchDeadline;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
