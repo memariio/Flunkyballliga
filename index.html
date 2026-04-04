@@ -14,17 +14,24 @@ window.addEventListener('resize', () => {
   updateFloatingButtonsVisibility();
 });
 document.addEventListener('click', (e) => {
-  const panel = document.getElementById('notif-panel');
+  const desktopPanel = document.getElementById('notif-panel');
+  const mobilePanel = document.getElementById('mobile-notif-panel');
   const desktopWrap = document.querySelector('.notif-wrap');
   const mobileWrap = document.querySelector('.mobile-notif-wrap');
-  if (!panel || !panel.classList.contains('open')) return;
 
-  const clickedInsidePanel = panel.contains(e.target);
+  const desktopOpen = desktopPanel && desktopPanel.classList.contains('open');
+  const mobileOpen = mobilePanel && mobilePanel.classList.contains('open');
+  if (!desktopOpen && !mobileOpen) return;
+
+  const insideDesktopPanel = desktopPanel && desktopPanel.contains(e.target);
+  const insideMobilePanel = mobilePanel && mobilePanel.contains(e.target);
   const clickedDesktopBell = desktopWrap && desktopWrap.contains(e.target);
   const clickedMobileBell = mobileWrap && mobileWrap.contains(e.target);
 
-  if (clickedInsidePanel || clickedDesktopBell || clickedMobileBell) return;
-  panel.classList.remove('open');
+  if (insideDesktopPanel || insideMobilePanel || clickedDesktopBell || clickedMobileBell) return;
+
+  if (desktopPanel) desktopPanel.classList.remove('open');
+  if (mobilePanel) mobilePanel.classList.remove('open');
 });
 </script>
 <style>
@@ -466,6 +473,17 @@ document.addEventListener('click', (e) => {
     opacity:0; pointer-events:none; transform:translateY(14px);
   }
   .mobile-notif-wrap { position:relative; z-index:271; }
+
+  .mobile-notif-panel {
+    position: absolute;
+    right: 0;
+    bottom: 62px;
+    width: min(320px, calc(100vw - 24px));
+    display: none;
+    z-index: 280;
+  }
+  .mobile-notif-panel.open { display: block; }
+
   .mobile-notif-btn {
     width:52px; height:52px; border-radius:16px; border:1px solid var(--border2);
     background:var(--card); color:var(--white); cursor:pointer; position:relative;
@@ -651,6 +669,10 @@ document.addEventListener('click', (e) => {
 <div class="mobile-fab-wrap hidden-force" id="mobile-fab-wrap">
   <div class="mobile-notif-wrap">
     <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
+    <div class="notif-panel mobile-notif-panel" id="mobile-notif-panel">
+      <div class="notif-header">Benachrichtigungen</div>
+      <div id="mobile-notif-list"></div>
+    </div>
   </div>
   <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="toggleReady()">Bereit stellen</button>
 </div>
@@ -2185,27 +2207,33 @@ async function loadNotifications() {
 
 function renderNotifications(items) {
   const list = document.getElementById('notif-list');
+  const mobileList = document.getElementById('mobile-notif-list');
   const badge = document.getElementById('notification-badge');
   const mobileBadge = document.getElementById('mobile-notification-badge');
-  if (!list || !badge) return;
   const unread = items.filter(n => !n.read).length;
-  badge.style.display = unread ? 'inline-flex' : 'none';
-  badge.textContent = unread;
-  if (mobileBadge) {
-    mobileBadge.style.display = badge.style.display;
-    mobileBadge.textContent = unread;
-  }
-  list.innerHTML = items.length ? items.map(n => `
+  const content = items.length ? items.map(n => `
     <div class="notif-item" onclick="openNotification(${n.id},'${n.type}','${n.related_id}')">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
   `).join('') : '<div class="notif-item"><div class="notif-sub">Keine neuen Benachrichtigungen.</div></div>';
+
+  if (list) list.innerHTML = content;
+  if (mobileList) mobileList.innerHTML = content;
+  if (badge) {
+    badge.style.display = unread ? 'inline-flex' : 'none';
+    badge.textContent = unread;
+  }
+  if (mobileBadge) {
+    mobileBadge.style.display = unread ? 'inline-flex' : 'none';
+    mobileBadge.textContent = unread;
+  }
   updateMobileActionBar();
 }
 
 async function openNotification(id, type, relatedId) {
-  document.getElementById('notif-panel').classList.remove('open');
+  document.getElementById('notif-panel')?.classList.remove('open');
+  document.getElementById('mobile-notif-panel')?.classList.remove('open');
   pendingNotifId = id;
   if (type === 'challenge') {
     pendingChallengeMatchId = relatedId;
@@ -2243,39 +2271,19 @@ async function openNotification(id, type, relatedId) {
 
 function toggleNotifications(event) {
   if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-  const panel = document.getElementById('notif-panel');
-  if (!panel) return;
 
   const isMobile = window.innerWidth <= 600;
-
-  if (isMobile && panel.parentElement !== document.body) {
-    document.body.appendChild(panel);
-  }
-
-  panel.classList.toggle('open');
+  const desktopPanel = document.getElementById('notif-panel');
+  const mobilePanel = document.getElementById('mobile-notif-panel');
 
   if (isMobile) {
-    panel.style.position = 'fixed';
-    panel.style.right = '14px';
-    panel.style.left = 'auto';
-    panel.style.top = 'auto';
-    panel.style.bottom = '84px';
-    panel.style.zIndex = '270';
-    panel.style.transformOrigin = 'bottom right';
-    panel.style.width = 'min(320px, calc(100vw - 24px))';
+    if (!mobilePanel) return;
+    mobilePanel.classList.toggle('open');
+    if (desktopPanel) desktopPanel.classList.remove('open');
   } else {
-    const desktopWrap = document.querySelector('.notif-wrap');
-    if (desktopWrap && panel.parentElement !== desktopWrap) {
-      desktopWrap.appendChild(panel);
-    }
-    panel.style.position = 'absolute';
-    panel.style.right = '0';
-    panel.style.left = 'auto';
-    panel.style.top = '54px';
-    panel.style.bottom = 'auto';
-    panel.style.zIndex = '210';
-    panel.style.transformOrigin = 'top right';
-    panel.style.width = '320px';
+    if (!desktopPanel) return;
+    desktopPanel.classList.toggle('open');
+    if (mobilePanel) mobilePanel.classList.remove('open');
   }
 }
 
