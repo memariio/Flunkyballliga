@@ -1662,21 +1662,15 @@ async function loadActiveMatch() {
 }
 
 function calculateFairnessFromHistory(team, games) {
-  const gameList = Array.isArray(games) ? games : [];
-  const deadlineFromTeam = Number(team?.deadline_missed) || 0;
-  const noShowFromTeam = Number(team?.no_show) || 0;
-  const deadlineFromGames = gameList.filter(g => g.status === 'deadline').length;
-  const noShowFromGames = gameList.filter(g => g.status === 'no_show').length;
-  const resultConflicts = gameList.filter(g => g.status === 'conflict').length;
-
-  const deadlineMissed = Math.max(deadlineFromTeam, deadlineFromGames);
-  const noShow = Math.max(noShowFromTeam, noShowFromGames);
+  const deadlineMissed = Number(team?.deadline_missed) || 0;
+  const noShow = Number(team?.no_show) || 0;
+  const resultConflicts = Number(team?.result_conflicts) || 0;
 
   let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
   score = Math.max(0, Math.min(100, score));
 
   let cleanStreak = 0;
-  const chronologicalGames = [...gameList].reverse();
+  const chronologicalGames = [...(games || [])].reverse();
 
   for (const game of chronologicalGames) {
     const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
@@ -1777,7 +1771,9 @@ async function loadProfile(team) {
   document.getElementById('prof-liga-badge').innerHTML = ligaBadge(team.liga);
   document.getElementById('prof-progress-label').textContent = `${Math.min(team.pts||0,20)} / 20 Pkt`;
   document.getElementById('prof-progress-fill').style.width = `${Math.min(((team.pts||0)/20)*100,100)}%`;
-  
+  document.getElementById('prof-deadline-missed').textContent = Number(team?.deadline_missed) || 0;
+  document.getElementById('prof-no-show').textContent = Number(team?.no_show) || 0;
+
   const isMyProfile = myTeam && team.id === myTeam.id;
   document.getElementById('profile-chat-btn').style.display = isMyProfile ? 'none' : 'inline-block';
   document.getElementById('profile-edit-btn').style.display = isMyProfile ? 'inline-block' : 'none';
@@ -1800,9 +1796,7 @@ async function loadProfile(team) {
   team.fairness_score_cached = fairness.score;
   if (myTeam && team.id === myTeam.id) myTeam.fairness_score_cached = fairness.score;
 
-  document.getElementById('prof-deadline-missed').textContent = fairness.deadlineMissed;
-  document.getElementById('prof-no-show').textContent = fairness.noShow;
-  document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
+  document.getElementById('prof-result-conflicts').textContent = Number(team?.result_conflicts) || 0;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
   document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
