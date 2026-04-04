@@ -1662,35 +1662,31 @@ async function loadActiveMatch() {
 }
 
 function calculateFairnessFromHistory(team, games) {
-  const allGames = Array.isArray(games) ? games : [];
-  const toNumber = (value) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const deadlineFromTeam = toNumber(team?.deadline_missed);
-  const noShowFromTeam = toNumber(team?.no_show);
-
-  const deadlineFromGames = allGames.filter(g => g?.status === 'deadline').length;
-  const noShowFromGames = allGames.filter(g => g?.status === 'no_show').length;
-  const resultConflicts = allGames.filter(g => g?.status === 'conflict').length;
+  const gameList = Array.isArray(games) ? games : [];
+  const deadlineFromTeam = Number(team?.deadline_missed) || 0;
+  const noShowFromTeam = Number(team?.no_show) || 0;
+  const deadlineFromGames = gameList.filter(g => g.status === 'deadline').length;
+  const noShowFromGames = gameList.filter(g => g.status === 'no_show').length;
+  const resultConflicts = gameList.filter(g => g.status === 'conflict').length;
 
   const deadlineMissed = Math.max(deadlineFromTeam, deadlineFromGames);
   const noShow = Math.max(noShowFromTeam, noShowFromGames);
 
   let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
-
-  const mostRecentGamesFirst = [...allGames];
-  let cleanStreak = 0;
-  for (const game of mostRecentGamesFirst) {
-    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game?.status);
-    if (hasViolation) break;
-    cleanStreak += 1;
-  }
-
-  const cleanBonus = cleanStreak >= 3 ? (cleanStreak - 2) * 20 : 0;
-  score += cleanBonus;
   score = Math.max(0, Math.min(100, score));
+
+  let cleanStreak = 0;
+  const chronologicalGames = [...gameList].reverse();
+
+  for (const game of chronologicalGames) {
+    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
+    if (hasViolation) {
+      cleanStreak = 0;
+      continue;
+    }
+    cleanStreak += 1;
+    if (cleanStreak >= 3) score = Math.min(100, score + 20);
+  }
 
   let level = 'Hoch';
   let className = 'fairness-high';
@@ -1706,7 +1702,7 @@ function calculateFairnessFromHistory(team, games) {
     shortClass = 'low';
   }
 
-  return { score, level, className, shortClass, resultConflicts, deadlineMissed, noShow, cleanStreak, cleanBonus };
+  return { score, level, className, shortClass, resultConflicts, deadlineMissed, noShow };
 }
 
 function getReadyTeamFairness(team) {
@@ -1781,9 +1777,7 @@ async function loadProfile(team) {
   document.getElementById('prof-liga-badge').innerHTML = ligaBadge(team.liga);
   document.getElementById('prof-progress-label').textContent = `${Math.min(team.pts||0,20)} / 20 Pkt`;
   document.getElementById('prof-progress-fill').style.width = `${Math.min(((team.pts||0)/20)*100,100)}%`;
-  document.getElementById('prof-deadline-missed').textContent = Number(team.deadline_missed) || 0;
-  document.getElementById('prof-no-show').textContent = Number(team.no_show) || 0;
-
+  
   const isMyProfile = myTeam && team.id === myTeam.id;
   document.getElementById('profile-chat-btn').style.display = isMyProfile ? 'none' : 'inline-block';
   document.getElementById('profile-edit-btn').style.display = isMyProfile ? 'inline-block' : 'none';
@@ -1811,7 +1805,7 @@ async function loadProfile(team) {
   document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
-  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Verstöße: -15 Frist, -25 No-Show, -10 Konflikt · Aktuelle Clean-Streak: ${fairness.cleanStreak} (${fairness.cleanBonus > 0 ? `+${fairness.cleanBonus}` : '+0'} Bonus)`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
