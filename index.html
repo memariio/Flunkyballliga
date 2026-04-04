@@ -2459,21 +2459,11 @@ document.addEventListener('visibilitychange', async () => {
 
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
 
-// Channel 1: public tables without filters (ready_teams, games, teams, all matches)
+// Channel 1: ready_teams, games, teams (öffentlich, ungefiltert)
 supabase.channel('public-data')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, async () => {
     await syncReadyState();
     loadReadyTeams();
-  })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
-    await loadOutgoingPendingChallenges();
-    loadReadyTeams();
-    await loadActiveMatches();
-    if (myTeam) {
-      await loadActiveMatch();
-      const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
-      if (data) { myTeam = data; updateNavAuth(); }
-    }
   })
   .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
     loadGames(currentLiga);
@@ -2489,11 +2479,30 @@ supabase.channel('public-data')
   })
   .subscribe((status) => {
     if (status === 'SUBSCRIBED') {
-      // Sofort nach Subscribe alles frisch laden
       loadReadyTeams();
-      loadActiveMatches();
       loadGames(currentLiga);
     }
+  });
+
+// Channel 2: alle matches (aktive Matches-Liste für alle User sichtbar)
+// Gefiltert auf status=active damit nur relevante Events kommen
+supabase.channel('active-matches-data')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches',
+    filter: `status=eq.active` }, () => { loadActiveMatches(); })
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches',
+    filter: `status=eq.active` }, () => { loadActiveMatches(); })
+  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'matches' },
+    () => { loadActiveMatches(); })
+  // UPDATE auf nicht-active (z.B. finished) lässt sich nicht filtern → ungefiltert
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' },
+    (payload) => {
+      // Wenn ein Match seinen Status verliert (finished/declined/etc.), Liste neu laden
+      if (payload.new?.status !== 'active' && payload.old?.status === 'active') {
+        loadActiveMatches();
+      }
+    })
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') loadActiveMatches();
   });
 
 // Channel 2: matches gefiltert auf mein Team (team_a oder team_b)
@@ -2600,7 +2609,8 @@ function startPollingFallback() {
   if (_pollInterval) return;
   _pollInterval = setInterval(async () => {
     if (!currentUser) return;
-    // Always poll for ready teams and active match (lightweight, critical for UX)
+    // Always keep active matches + ready teams fresh as safety net
+    loadActiveMatches();
     loadReadyTeams();
     if (myTeam) await loadActiveMatch();
     // Only poll notifications/badge if realtime channel isn't healthy
@@ -2608,7 +2618,7 @@ function startPollingFallback() {
       await loadNotifications();
       await renderChatBadge();
     }
-  }, 8000);
+  }, 5000);
 }
 function stopPollingFallback() {
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
