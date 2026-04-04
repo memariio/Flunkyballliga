@@ -2472,10 +2472,21 @@ function setupRealtimeSubscriptions() {
       if (myTeam) await loadActiveMatch();
       if (currentPage === 'chat' && myTeam) await renderChatContacts();
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => loadGames(currentLiga))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, async () => {
+      await loadGames(currentLiga);
+      await refreshCurrentProfileLive();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
       await loadLeaderboard(currentLBFilter);
       if (currentPage === 'chat' && myTeam) await renderChatContacts();
+
+      const changedTeamId = payload?.new?.id || payload?.old?.id;
+      const isOwnTeam = myTeam && String(changedTeamId) === String(myTeam.id);
+      const isOpenProfile = currentProfileTeamId && String(changedTeamId) === String(currentProfileTeamId);
+
+      if (isOwnTeam || isOpenProfile) {
+        await refreshCurrentProfileLive({ force: isOwnTeam || currentPage === 'profile' });
+      }
     })
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') scheduleLiveRefresh(250);
@@ -2533,6 +2544,33 @@ function setupRealtimeSubscriptions() {
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') scheduleLiveRefresh(250);
       });
+  }
+}
+
+
+async function refreshCurrentProfileLive(options = {}) {
+  const { force = false } = options;
+  if (!currentProfileTeamId || (!force && currentPage !== 'profile')) return;
+
+  try {
+    const { data: freshTeam, error } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('id', currentProfileTeamId)
+      .maybeSingle();
+
+    if (error || !freshTeam) return;
+
+    currentProfileTeam = freshTeam;
+    if (myTeam && freshTeam.id === myTeam.id) {
+      myTeam = { ...myTeam, ...freshTeam };
+      updateNavAuth();
+      updateReadyUI();
+    }
+
+    await loadProfile(freshTeam);
+  } catch (error) {
+    console.error('Profile live refresh failed:', error);
   }
 }
 
