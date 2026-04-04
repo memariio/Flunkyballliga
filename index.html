@@ -481,6 +481,7 @@ document.addEventListener('click', (e) => {
     width: min(320px, calc(100vw - 24px));
     display: none;
     z-index: 280;
+    pointer-events: auto;
   }
   .mobile-notif-panel.open { display: block; }
 
@@ -528,7 +529,7 @@ document.addEventListener('click', (e) => {
   }
   .notif-panel.open { display: block; }
   .notif-header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-weight: 800; }
-  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; }
+  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; pointer-events: auto; }
   .notif-item:hover { background: var(--card2); }
   .notif-item:last-child { border-bottom: none; }
   .notif-title { font-weight: 700; color: var(--white); font-size: 0.88rem; }
@@ -2212,7 +2213,7 @@ function renderNotifications(items) {
   const mobileBadge = document.getElementById('mobile-notification-badge');
   const unread = items.filter(n => !n.read).length;
   const content = items.length ? items.map(n => `
-    <div class="notif-item" onclick="openNotification(${n.id},'${n.type}','${n.related_id}')">
+    <div class="notif-item" onclick="event.stopPropagation();openNotification(${n.id},'${n.type}','${n.related_id}')">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
