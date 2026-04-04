@@ -483,6 +483,25 @@ document.addEventListener('click', (e) => {
   .mobile-ready-btn.off { background:var(--card2); color:var(--text); }
   .mobile-ready-btn.on { background:var(--green); color:#080c0a; }
   .mobile-ready-btn.busy { background:#7f1d1d; color:#fecaca; border:1px solid #ef444466; }
+  .mobile-ready-btn.logged-out { background:var(--green); color:#080c0a; }
+  .mobile-top-actions {
+    min-width:min(92vw, 360px); display:flex; align-items:center; justify-content:space-between; gap:10px;
+    pointer-events:auto;
+  }
+  .mobile-team-meta {
+    min-width:0; flex:1; height:52px; border-radius:16px; border:1px solid var(--border2);
+    background:var(--card); box-shadow:0 12px 28px #0008; padding:0 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .mobile-team-name {
+    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:0.9rem; font-weight:800; color:var(--text2);
+  }
+  .mobile-logout-btn {
+    border:none; background:transparent; color:var(--text); font-family:'Syne', sans-serif;
+    font-size:0.82rem; font-weight:800; cursor:pointer; padding:0; flex-shrink:0;
+  }
+  .mobile-logout-btn:hover { color:#fecaca; }
   .chat-search-wrap { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
   .chat-search-input {
     width:100%; background:var(--bg2); border:1px solid var(--border);
@@ -584,9 +603,8 @@ document.addEventListener('click', (e) => {
     .chat-main { min-height: 58vh; }
     .active-game-banner { flex-direction: column; align-items: stretch; }
 
-    #nav-loggedin .notif-wrap,
-    #nav-loggedin #ready-btn,
-    #nav-loggedin #ready-status-text { display:none !important; }
+    #nav-loggedin,
+    #nav-loggedout { display:none !important; }
 
     .mobile-fab-wrap { display:flex; }
 
@@ -632,10 +650,16 @@ document.addEventListener('click', (e) => {
   </div>
 </nav>
 <div class="mobile-fab-wrap hidden-force" id="mobile-fab-wrap">
-  <div class="mobile-notif-wrap">
-    <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
+  <div class="mobile-top-actions hidden-force" id="mobile-top-actions">
+    <div class="mobile-team-meta">
+      <span class="mobile-team-name" id="mobile-team-name"></span>
+      <button class="mobile-logout-btn" onclick="handleLogout()">Abmelden</button>
+    </div>
+    <div class="mobile-notif-wrap">
+      <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
+    </div>
   </div>
-  <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="toggleReady()">Bereit stellen</button>
+  <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="handleMobilePrimaryAction()">Bereit stellen</button>
 </div>
 
 <div class="notif-panel" id="notif-panel">
@@ -1325,13 +1349,16 @@ supabase.auth.onAuthStateChange((event, session) => {
 function updateNavAuth() {
   const loggedIn = document.getElementById('nav-loggedin');
   const loggedOut = document.getElementById('nav-loggedout');
+  const mobileTeamName = document.getElementById('mobile-team-name');
   if (currentUser && myTeam) {
     loggedIn.style.display = 'flex';
     loggedOut.style.display = 'none';
     document.getElementById('nav-user-name').textContent = myTeam.name;
+    if (mobileTeamName) mobileTeamName.textContent = myTeam.name;
   } else {
     loggedIn.style.display = 'none';
     loggedOut.style.display = 'flex';
+    if (mobileTeamName) mobileTeamName.textContent = '';
   }
 }
 
@@ -1668,8 +1695,17 @@ function getReadyTeamFairness(team) {
   return { label: 'Fairness Niedrig', shortClass: 'low' };
 }
 
+function handleMobilePrimaryAction() {
+  if (currentUser && myTeam) {
+    toggleReady();
+    return;
+  }
+  openAuthModal();
+}
+
 function updateMobileActionBar() {
   const wrap = document.getElementById('mobile-fab-wrap');
+  const topActions = document.getElementById('mobile-top-actions');
   const readyBtn = document.getElementById('mobile-ready-btn');
   const desktopBadge = document.getElementById('notification-badge');
   const mobileBadge = document.getElementById('mobile-notification-badge');
@@ -1677,14 +1713,20 @@ function updateMobileActionBar() {
 
   const loggedIn = !!(currentUser && myTeam);
   const isMobile = window.innerWidth <= 600;
-  wrap.classList.toggle('hidden-force', !(loggedIn && isMobile));
+  wrap.classList.toggle('hidden-force', !isMobile);
 
   if (desktopBadge && mobileBadge) {
     mobileBadge.textContent = desktopBadge.textContent || '';
     mobileBadge.style.display = desktopBadge.style.display || 'none';
   }
 
-  if (!loggedIn) return;
+  if (topActions) topActions.classList.toggle('hidden-force', !loggedIn);
+
+  if (!loggedIn) {
+    readyBtn.className = 'mobile-ready-btn logged-out';
+    readyBtn.textContent = '🔐 Login';
+    return;
+  }
 
   if (activeMatch) {
     readyBtn.className = 'mobile-ready-btn busy';
