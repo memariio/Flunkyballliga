@@ -18,7 +18,12 @@ document.addEventListener('click', (e) => {
   const desktopWrap = document.querySelector('.notif-wrap');
   const mobileWrap = document.querySelector('.mobile-notif-wrap');
   if (!panel || !panel.classList.contains('open')) return;
-  if ((desktopWrap && desktopWrap.contains(e.target)) || (mobileWrap && mobileWrap.contains(e.target))) return;
+
+  const clickedInsidePanel = panel.contains(e.target);
+  const clickedDesktopBell = desktopWrap && desktopWrap.contains(e.target);
+  const clickedMobileBell = mobileWrap && mobileWrap.contains(e.target);
+
+  if (clickedInsidePanel || clickedDesktopBell || clickedMobileBell) return;
   panel.classList.remove('open');
 });
 </script>
@@ -455,6 +460,7 @@ document.addEventListener('click', (e) => {
     position:fixed; right:14px; bottom:14px; z-index:260;
     display:none; flex-direction:column; align-items:flex-end; gap:10px;
     transition:opacity .22s ease, transform .22s ease;
+    pointer-events:none;
   }
   .mobile-fab-wrap.hide-fabs {
     opacity:0; pointer-events:none; transform:translateY(14px);
@@ -465,12 +471,14 @@ document.addEventListener('click', (e) => {
     background:var(--card); color:var(--white); cursor:pointer; position:relative;
     display:inline-flex; align-items:center; justify-content:center; font-size:1rem;
     box-shadow:0 12px 28px #0008;
+    pointer-events:auto;
   }
   .mobile-ready-btn {
     min-width:min(92vw, 360px); height:56px; border-radius:18px;
     border:1px solid var(--border2); background:var(--green); color:#080c0a;
     font-family:'Syne', sans-serif; font-size:0.95rem; font-weight:800;
     letter-spacing:0.02em; box-shadow:0 14px 32px #0008; cursor:pointer; padding:0 18px;
+    pointer-events:auto;
   }
   .mobile-ready-btn.off { background:var(--card2); color:var(--text); }
   .mobile-ready-btn.on { background:var(--green); color:#080c0a; }
@@ -2220,20 +2228,30 @@ async function openNotification(id, type, relatedId) {
   }
 }
 
-function toggleNotifications(e) {
-  e?.stopPropagation?.();
+function toggleNotifications(event) {
+  if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
   const panel = document.getElementById('notif-panel');
+  if (!panel) return;
+
+  const isMobile = window.innerWidth <= 600;
   panel.classList.toggle('open');
-  if (window.innerWidth <= 600) {
+
+  if (isMobile) {
+    panel.style.position = 'fixed';
+    panel.style.right = '14px';
+    panel.style.left = 'auto';
     panel.style.top = 'auto';
-    panel.style.bottom = '62px';
-    panel.style.right = '0';
-    panel.style.left = 'auto';
+    panel.style.bottom = '84px';
+    panel.style.zIndex = '270';
+    panel.style.transformOrigin = 'bottom right';
   } else {
-    panel.style.top = '';
-    panel.style.bottom = '';
+    panel.style.position = 'absolute';
     panel.style.right = '0';
     panel.style.left = 'auto';
+    panel.style.top = '54px';
+    panel.style.bottom = 'auto';
+    panel.style.zIndex = '210';
+    panel.style.transformOrigin = 'top right';
   }
 }
 
