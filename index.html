@@ -33,21 +33,33 @@ document.addEventListener('click', (e) => {
   if (desktopPanel) desktopPanel.classList.remove('open');
   if (mobilePanel) mobilePanel.classList.remove('open');
 });
+
 window.addEventListener('online', async () => {
-  await loadAllData();
-  if (currentUser && myTeam) {
-    await loadActiveMatch();
-    await syncReadyState();
-  }
+  try { await refreshLiveData(); } catch (e) { console.error(e); }
 });
 window.addEventListener('focus', async () => {
-  if (document.visibilityState !== 'visible') return;
-  await loadAllData();
-  if (currentUser && myTeam) {
-    await loadActiveMatch();
-    await syncReadyState();
+  try { await refreshLiveData(); } catch (e) { console.error(e); }
+});
+window.addEventListener('pageshow', async () => {
+  try { await refreshLiveData(); } catch (e) { console.error(e); }
+});
+document.addEventListener('visibilitychange', async () => {
+  if (authHydrating) return;
+  if (document.visibilityState === 'visible') {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user && isSessionExpired()) {
+        await handleLogout();
+        return;
+      }
+      await syncAuthState(session || null);
+      await refreshLiveData();
+    } catch (error) {
+      console.error('Visibility auth sync failed:', error);
+    }
   }
 });
+
 </script>
 <style>
   :root {
@@ -496,8 +508,10 @@ window.addEventListener('focus', async () => {
     width: min(320px, calc(100vw - 24px));
     display: none;
     z-index: 280;
+    pointer-events: auto;
   }
   .mobile-notif-panel.open { display: block; }
+  .mobile-notif-panel .notif-item { pointer-events: auto; }
 
   .mobile-notif-btn {
     width:52px; height:52px; border-radius:16px; border:1px solid var(--border2);
@@ -1138,16 +1152,30 @@ function isSessionExpired() {
   const expiresAt = Number(raw);
   return !Number.isFinite(expiresAt) || Date.now() > expiresAt;
 }
+async function refreshLiveData() {
+  if (authHydrating) return;
+  await loadAllData();
+  if (currentUser && myTeam) {
+    await loadActiveMatch();
+    await syncReadyState();
+    if (currentPage === 'profile') {
+      const viewedTeamId = selectedProfileTeamId || myTeam?.id;
+      if (viewedTeamId) {
+        const { data: freshTeam } = await supabase.from('teams').select('*').eq('id', viewedTeamId).maybeSingle();
+        if (freshTeam) await loadProfile(freshTeam);
+      }
+    }
+  }
+}
 function startLiveRefresh() {
   stopLiveRefresh();
   liveRefreshInterval = setInterval(async () => {
-    if (document.visibilityState !== 'visible' || authHydrating) return;
-    await loadAllData();
-    if (currentUser && myTeam) {
-      await loadActiveMatch();
-      await syncReadyState();
+    try {
+      await refreshLiveData();
+    } catch (e) {
+      console.error('Live refresh failed:', e);
     }
-  }, 12000);
+  }, 6000);
 }
 function stopLiveRefresh() {
   if (liveRefreshInterval) {
@@ -1418,6 +1446,12 @@ async function loadAllData() {
     loadLeaderboard(currentLBFilter),
     loadNotifications()
   ]);
+
+  if (currentUser && myTeam) {
+    await loadActiveMatch();
+    await syncReadyState();
+  }
+
   if (currentPage === 'chat' && currentUser && myTeam) renderChatContacts();
   updateMobileActionBar();
   updateFloatingButtonsVisibility();
@@ -2277,7 +2311,7 @@ function renderNotifications(items) {
   const mobileBadge = document.getElementById('mobile-notification-badge');
   const unread = items.filter(n => !n.read).length;
   const content = items.length ? items.map(n => `
-    <div class="notif-item" onclick="openNotification(${n.id},'${n.type}','${n.related_id}')">
+    <div class="notif-item" onclick="openNotification(${JSON.stringify(n.id)}, ${JSON.stringify(n.type)}, ${JSON.stringify(n.related_id)})">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
@@ -2297,41 +2331,54 @@ function renderNotifications(items) {
 }
 
 async function openNotification(id, type, relatedId) {
+  try {
+    await supabase.from('notifications').update({ read: true }).eq('id', id);
+  } catch (e) {
+    console.error('Notification read error:', e);
+  }
+
   document.getElementById('notif-panel')?.classList.remove('open');
   document.getElementById('mobile-notif-panel')?.classList.remove('open');
-  pendingNotifId = id;
-  if (type === 'challenge') {
-    pendingChallengeMatchId = relatedId;
-    const { data: match } = await supabase.from('matches').select('*, team_a:team_a_id(name)').eq('id', relatedId).single();
-    if (!match) return;
-    document.getElementById('incoming-challenge-body').innerHTML = `<strong>${match.team_a?.name || '?'}</strong> fordert euch heraus. Möchtet ihr annehmen?`;
-    openModal('incoming-challenge');
-  } else if (type === 'extend') {
-    pendingExtendMatchId = relatedId;
-    const { data: match } = await supabase.from('matches').select('*, team_a:team_a_id(name)').eq('id', relatedId).single();
-    const oppName = match?.team_a?.name || '?';
-    document.getElementById('incoming-extend-body').innerHTML = `<strong>${oppName}</strong> möchte die Spielfrist um 48 Stunden verlängern.`;
-    openModal('incoming-extend');
-  } else if (type === 'message') {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    loadNotifications();
-    // open chat – relatedId is team_id of sender
-    if (relatedId) {
-      const { data: t } = await supabase.from('teams').select('*').eq('id', relatedId).single();
-      if (t) openChatForTeam(t);
-    }
-  } else if (type === 'challenge_response') {
-    const { data: notif } = await supabase.from('notifications').select('*').eq('id', id).maybeSingle();
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    loadNotifications();
-    if (notif?.title || notif?.sub) showToast(notif?.title || notif?.sub || 'ℹ️ Update zur Herausforderung');
-    if (relatedId) {
-      await loadOutgoingPendingChallenges();
-      loadReadyTeams();
-      await loadActiveMatches();
-      if (myTeam) await loadActiveMatch();
+
+  if (type === 'challenge' && relatedId) {
+    try {
+      const { data: match } = await supabase
+        .from('matches')
+        .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+        .eq('id', relatedId)
+        .maybeSingle();
+      if (match && currentUser && myTeam && match.status === 'pending' && match.challenged_team_id === myTeam.id) {
+        pendingIncomingChallenge = match;
+        const challengerName = match.team_a?.name || 'Ein Team';
+        const challengedName = match.team_b?.name || 'dein Team';
+        document.getElementById('incoming-challenge-body').innerHTML = `<strong style="color:var(--white)">${challengerName}</strong> fordert <strong style="color:var(--white)">${challengedName}</strong> heraus.`;
+        openModal('incoming-challenge');
+      }
+    } catch (e) {
+      console.error('Challenge notification open error:', e);
     }
   }
+
+  if (type === 'extend' && relatedId) {
+    try {
+      const { data: match } = await supabase
+        .from('matches')
+        .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+        .eq('id', relatedId)
+        .maybeSingle();
+      if (match && currentUser && myTeam && match.status === 'active' && match.extend_requested_by && match.extend_requested_by !== myTeam.id) {
+        pendingIncomingExtend = match;
+        const requester = match.extend_requested_by === match.team_a_id ? (match.team_a?.name || 'Der Gegner') : (match.team_b?.name || 'Der Gegner');
+        document.getElementById('incoming-extend-body').innerHTML = `<strong style="color:var(--white)">${requester}</strong> möchte die Frist um 48 Stunden verlängern.`;
+        openModal('incoming-extend');
+      }
+    } catch (e) {
+      console.error('Extend notification open error:', e);
+    }
+  }
+
+  await loadNotifications();
+  updateMobileActionBar();
 }
 
 function toggleNotifications(event) {
