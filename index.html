@@ -14,24 +14,17 @@ window.addEventListener('resize', () => {
   updateFloatingButtonsVisibility();
 });
 document.addEventListener('click', (e) => {
-  const desktopPanel = document.getElementById('notif-panel');
-  const mobilePanel = document.getElementById('mobile-notif-panel');
+  const panel = document.getElementById('notif-panel');
   const desktopWrap = document.querySelector('.notif-wrap');
   const mobileWrap = document.querySelector('.mobile-notif-wrap');
+  if (!panel || !panel.classList.contains('open')) return;
 
-  const desktopOpen = desktopPanel && desktopPanel.classList.contains('open');
-  const mobileOpen = mobilePanel && mobilePanel.classList.contains('open');
-  if (!desktopOpen && !mobileOpen) return;
-
-  const insideDesktopPanel = desktopPanel && desktopPanel.contains(e.target);
-  const insideMobilePanel = mobilePanel && mobilePanel.contains(e.target);
+  const clickedInsidePanel = panel.contains(e.target);
   const clickedDesktopBell = desktopWrap && desktopWrap.contains(e.target);
   const clickedMobileBell = mobileWrap && mobileWrap.contains(e.target);
 
-  if (insideDesktopPanel || insideMobilePanel || clickedDesktopBell || clickedMobileBell) return;
-
-  if (desktopPanel) desktopPanel.classList.remove('open');
-  if (mobilePanel) mobilePanel.classList.remove('open');
+  if (clickedInsidePanel || clickedDesktopBell || clickedMobileBell) return;
+  panel.classList.remove('open');
 });
 </script>
 <style>
@@ -472,19 +465,7 @@ document.addEventListener('click', (e) => {
   .mobile-fab-wrap.hide-fabs {
     opacity:0; pointer-events:none; transform:translateY(14px);
   }
-  .mobile-notif-wrap { position:relative; z-index:271; }
-
-  .mobile-notif-panel {
-    position: absolute;
-    right: 0;
-    bottom: 62px;
-    width: min(320px, calc(100vw - 24px));
-    display: none;
-    z-index: 280;
-    pointer-events: auto;
-  }
-  .mobile-notif-panel.open { display: block; }
-
+  .mobile-notif-wrap { position:relative; }
   .mobile-notif-btn {
     width:52px; height:52px; border-radius:16px; border:1px solid var(--border2);
     background:var(--card); color:var(--white); cursor:pointer; position:relative;
@@ -521,7 +502,7 @@ document.addEventListener('click', (e) => {
     display: inline-flex; align-items: center; justify-content: center; padding: 0 5px;
     display: none;
   }
-  .notif-wrap { position: relative; overflow: visible; }
+  .notif-wrap { position: relative; }
   .notif-panel {
     position: absolute; top: 54px; right: 0; width: 320px; background: var(--bg3);
     border: 1px solid var(--border2); border-radius: 14px; box-shadow: 0 16px 40px #0008;
@@ -529,7 +510,7 @@ document.addEventListener('click', (e) => {
   }
   .notif-panel.open { display: block; }
   .notif-header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-weight: 800; }
-  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; pointer-events: auto; }
+  .notif-item { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.15s; }
   .notif-item:hover { background: var(--card2); }
   .notif-item:last-child { border-bottom: none; }
   .notif-title { font-weight: 700; color: var(--white); font-size: 0.88rem; }
@@ -617,19 +598,6 @@ document.addEventListener('click', (e) => {
       width:min(320px, calc(100vw - 24px));
     }
   }
-
-  @media (max-width: 600px) {
-    #notif-panel.open {
-      position: fixed !important;
-      right: 14px !important;
-      left: auto !important;
-      top: auto !important;
-      bottom: 84px !important;
-      width: min(320px, calc(100vw - 24px)) !important;
-      z-index: 270 !important;
-    }
-  }
-
 </style>
 </head>
 <body>
@@ -670,10 +638,6 @@ document.addEventListener('click', (e) => {
 <div class="mobile-fab-wrap hidden-force" id="mobile-fab-wrap">
   <div class="mobile-notif-wrap">
     <button class="mobile-notif-btn" id="mobile-notif-btn" onclick="toggleNotifications(event)">🔔<span class="notification-badge" id="mobile-notification-badge"></span></button>
-    <div class="notif-panel mobile-notif-panel" id="mobile-notif-panel">
-      <div class="notif-header">Benachrichtigungen</div>
-      <div id="mobile-notif-list"></div>
-    </div>
   </div>
   <button class="mobile-ready-btn off" id="mobile-ready-btn" onclick="toggleReady()">Bereit stellen</button>
 </div>
@@ -1038,10 +1002,9 @@ const SUPABASE_URL = 'https://trviggxajixuorjkbjep.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRydmlnZ3hhaml4dW9yamtiamVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTc0NzIsImV4cCI6MjA5MDI3MzQ3Mn0.bMhwydIUyGmRpNlsjAweq8aJgkziLDOhgbcJ6dHoXSY';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storageKey: 'flunkyball-auth'
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
   }
 });
 
@@ -1084,16 +1047,6 @@ function formatTimer(secs) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
-// Calculate remaining seconds from server timestamp instead of counting down locally.
-// activated_at is stored in created_at when a match is accepted.
-// duration_seconds is stored in timer_seconds at match start (48h or 96h if extended).
-function getRemainingSeconds(match) {
-  const activatedAt = match.activated_at ? new Date(match.activated_at) : new Date(match.created_at);
-  const durationSecs = match.timer_seconds || 48 * 3600;
-  const elapsedSecs = (Date.now() - activatedAt.getTime()) / 1000;
-  return Math.max(0, Math.floor(durationSecs - elapsedSecs));
-}
-
 function startActiveMatchesTimers() {
   if (activeMatchesTimerInterval) {
     clearInterval(activeMatchesTimerInterval);
@@ -1103,9 +1056,14 @@ function startActiveMatchesTimers() {
   if (!allActiveMatches || allActiveMatches.length === 0) return;
 
   activeMatchesTimerInterval = setInterval(() => {
+    allActiveMatches = allActiveMatches.map(match => ({
+      ...match,
+      timer_seconds: Math.max(0, (match.timer_seconds || 0) - 1)
+    }));
+
     allActiveMatches.forEach(match => {
       const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"]`);
-      if (el) el.textContent = formatTimer(getRemainingSeconds(match));
+      if (el) el.textContent = formatTimer(match.timer_seconds || 0);
     });
   }, 1000);
 }
@@ -1290,18 +1248,11 @@ async function syncAuthState(session) {
       isReady = false;
       challengedTeamIds = new Set();
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      stopPollingFallback();
-      if (_matchChannelA) { supabase.removeChannel(_matchChannelA); _matchChannelA = null; }
-      if (_matchChannelB) { supabase.removeChannel(_matchChannelB); _matchChannelB = null; }
     }
 
     updateNavAuth();
     updateAuthViews();
-    setupPrivateChannel();
-    setupMatchChannel();
-    startPollingFallback();
     await loadAllData();
-    if (myTeam) renderChatBadge();
   } finally {
     authHydrating = false;
   }
@@ -1377,8 +1328,6 @@ async function loadOutgoingPendingChallenges() {
     challengedTeamIds = new Set();
     return;
   }
-
-  // Only block teams that have a truly open (pending) challenge from us
   const { data, error } = await supabase
     .from('matches')
     .select('team_b_id')
@@ -1390,19 +1339,7 @@ async function loadOutgoingPendingChallenges() {
     return;
   }
 
-  const pendingIds = new Set((data || []).map(row => row.team_b_id).filter(Boolean));
-
-  // After a match is completed (any terminal status), allow re-challenging that team
-  if (pendingIds.size > 0) {
-    const { data: finishedMatches } = await supabase
-      .from('matches')
-      .select('team_b_id')
-      .eq('team_a_id', myTeam.id)
-      .in('status', ['finished', 'declined', 'conflict', 'no_show', 'deadline']);
-    (finishedMatches || []).forEach(row => pendingIds.delete(row.team_b_id));
-  }
-
-  challengedTeamIds = pendingIds;
+  challengedTeamIds = new Set((data || []).map(row => row.team_b_id).filter(Boolean));
 }
 
 async function loadReadyTeams() {
@@ -1499,7 +1436,7 @@ async function loadActiveMatches() {
 
   count.textContent = `${data.length} Matches`;
   list.innerHTML = data.map(m => {
-    const secs = getRemainingSeconds(m);
+    const secs = m.timer_seconds || 0;
     return `
       <div class="active-match-row">
         <div class="active-match-main">
@@ -1611,7 +1548,7 @@ async function loadActiveMatch() {
     .maybeSingle();
   activeMatch = data || null;
   if (activeMatch) {
-    timerSeconds = getRemainingSeconds(activeMatch);
+    timerSeconds = activeMatch.timer_seconds || 0;
     resultSubmitted = !!(myTeam.id === activeMatch.team_a_id ? activeMatch.team_a_result : activeMatch.team_b_result);
     startTimer();
   } else {
@@ -1621,74 +1558,46 @@ async function loadActiveMatch() {
   updateReadyUI();
 }
 
-// ─── FAIRNESS SYSTEM ─────────────────────────────────────────────────────────
-// Score starts at 100.
-// Deductions (from team counters stored in DB):
-//   deadline_missed : -15 per occurrence
-//   no_show         : -25 per occurrence
-//   conflict        : -10 per occurrence (counted from games history)
-//
-// Recovery (from chronological game history, oldest → newest):
-//   A "clean" game = status 'finished' or 'normal' (no violation).
-//   Once a streak of 3 clean games is reached, each *additional* clean game
-//   after that gives +5 back (capped at 100).
-//   A single violation resets the streak to 0.
-//
-// The computed score is written back to teams.fairness_score so it persists
-// and is available for the ready-teams grid without opening a profile.
-
 function calculateFairnessFromHistory(team, games) {
   const deadlineMissed = team?.deadline_missed || 0;
-  const noShow         = team?.no_show || 0;
-  const sortedGames    = [...(games || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const resultConflicts = sortedGames.filter(g => g.status === 'conflict').length;
+  const noShow = team?.no_show || 0;
+  const resultConflicts = (games || []).filter(g => g.status === 'conflict').length;
 
-  // Base deductions
-  let score = 100
-    - (deadlineMissed * 15)
-    - (noShow         * 25)
-    - (resultConflicts * 10);
+  let score = 100 - (deadlineMissed * 15) - (noShow * 25) - (resultConflicts * 10);
   score = Math.max(0, Math.min(100, score));
 
-  // Recovery: streak must reach 3 before any bonus kicks in;
-  // every clean game *after* the 3rd gives +5 (not +20 per game)
   let cleanStreak = 0;
-  for (const game of sortedGames) {
-    const isViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
-    if (isViolation) {
+  const chronologicalGames = [...(games || [])].reverse();
+
+  for (const game of chronologicalGames) {
+    const hasViolation = ['deadline', 'no_show', 'conflict'].includes(game.status);
+    if (hasViolation) {
       cleanStreak = 0;
-    } else {
-      cleanStreak++;
-      // Only reward from the 4th clean game onward (streak > 3)
-      if (cleanStreak > 3) {
-        score = Math.min(100, score + 5);
-      }
+      continue;
     }
+    cleanStreak += 1;
+    if (cleanStreak >= 3) score = Math.min(100, score + 20);
   }
 
-  score = Math.max(0, Math.min(100, score));
-
-  let level      = 'Hoch';
-  let className  = 'fairness-high';
+  let level = 'Hoch';
+  let className = 'fairness-high';
   let shortClass = 'high';
-  if (score < 70) { level = 'Mittel';   className = 'fairness-medium'; shortClass = 'medium'; }
-  if (score < 40) { level = 'Niedrig';  className = 'fairness-low';    shortClass = 'low'; }
+  if (score < 70) {
+    level = 'Mittel';
+    className = 'fairness-medium';
+    shortClass = 'medium';
+  }
+  if (score < 40) {
+    level = 'Niedrig';
+    className = 'fairness-low';
+    shortClass = 'low';
+  }
 
   return { score, level, className, shortClass, resultConflicts };
 }
 
-// Persist fairness score to DB so it's available everywhere without opening profiles
-async function persistFairnessScore(teamId, score) {
-  await supabase.from('teams').update({ fairness_score: score }).eq('id', teamId);
-}
-
 function getReadyTeamFairness(team) {
-  // Prefer persisted DB value (fairness_score), fall back to cached, then 100
-  const score = Number.isFinite(team?.fairness_score)
-    ? team.fairness_score
-    : Number.isFinite(team?.fairness_score_cached)
-      ? team.fairness_score_cached
-      : 100;
+  const score = Number.isFinite(team?.fairness_score_cached) ? team.fairness_score_cached : 100;
   if (score >= 70) return { label: 'Fairness Hoch', shortClass: 'high' };
   if (score >= 40) return { label: 'Fairness Mittel', shortClass: 'medium' };
   return { label: 'Fairness Niedrig', shortClass: 'low' };
@@ -1767,18 +1676,12 @@ async function loadProfile(team) {
 
   const fairness = calculateFairnessFromHistory(team, games || []);
   team.fairness_score_cached = fairness.score;
-  team.fairness_score = fairness.score;
-  if (myTeam && team.id === myTeam.id) {
-    myTeam.fairness_score_cached = fairness.score;
-    myTeam.fairness_score = fairness.score;
-  }
-  // Persist to DB so ready-teams grid and other views always have the current score
-  persistFairnessScore(team.id, fairness.score);
+  if (myTeam && team.id === myTeam.id) myTeam.fairness_score_cached = fairness.score;
 
   document.getElementById('prof-result-conflicts').textContent = fairness.resultConflicts;
   document.getElementById('prof-fairness-level').textContent = fairness.level;
   document.getElementById('prof-fairness-level').className = `stat-val ${fairness.className}`;
-  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Abzug: Frist verpasst −15, No-Show −25, Konflikt −10 · Bonus ab 4. sauberem Match in Folge: +5`;
+  document.getElementById('prof-fairness-note').textContent = `Fairness-Score: ${fairness.score} / 100 · Ab 3 sauberen Matches in Folge +20 pro weiterem sauberem Match`;
 
   const last = games?.[0];
   document.getElementById('prof-last-match').innerHTML = last ? renderGameRow(last, team.id) : '<div class="mini-note">Noch kein Match eingetragen.</div>';
@@ -2004,32 +1907,10 @@ async function respondChallenge(accepted) {
   }
 
   if (accepted) {
-    const now = new Date().toISOString();
-
-    // Update match to active and fetch the fresh row with all joins in one step
-    const { data: activeMatchData } = await supabase
-      .from('matches')
-      .update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now })
-      .eq('id', pendingChallengeMatchId)
-      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-      .single();
-
-    const teamAId = activeMatchData?.team_a_id || match.team_a_id;
-    const teamBId = activeMatchData?.team_b_id || match.team_b_id;
-
-    await supabase.from('ready_teams').delete().in('team_id', [teamAId, teamBId]);
+    await supabase.from('matches').update({ status: 'active', timer_seconds: 48*3600, created_at: new Date().toISOString() }).eq('id', pendingChallengeMatchId);
+    await supabase.from('ready_teams').delete().in('team_id', [match.team_a_id, match.team_b_id]);
     isReady = false;
-
-    // Set activeMatch directly — no need for another DB round-trip
-    if (activeMatchData) {
-      activeMatch = activeMatchData;
-      timerSeconds = getRemainingSeconds(activeMatch);
-      resultSubmitted = false;
-      startTimer();
-      refreshActiveMatchUI();
-    }
     updateReadyUI();
-
     if (match.team_a?.user_id) {
       await supabase.from('notifications').insert({
         user_id: match.team_a.user_id,
@@ -2042,6 +1923,7 @@ async function respondChallenge(accepted) {
     }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
+    await loadActiveMatch();
     loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
@@ -2058,9 +1940,6 @@ async function respondChallenge(accepted) {
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('❌ Herausforderung abgelehnt.');
     loadNotifications();
-    // Reload so the challenger can immediately re-challenge after decline
-    await loadOutgoingPendingChallenges();
-    loadReadyTeams();
   }
   pendingChallengeMatchId = null; pendingNotifId = null;
 }
@@ -2085,66 +1964,18 @@ function refreshActiveMatchUI() {
 function startTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   timerInterval = setInterval(async () => {
-    if (!activeMatch) { clearInterval(timerInterval); timerInterval = null; return; }
-    // Always derive remaining time from server timestamp — never drift on reload
-    timerSeconds = getRemainingSeconds(activeMatch);
+    timerSeconds = Math.max(0, timerSeconds - 1);
     const el = document.getElementById('main-timer');
     if (el) el.textContent = formatTimer(timerSeconds);
+    // update timer in db every 60s
+    if (timerSeconds % 60 === 0 && activeMatch) {
+      await supabase.from('matches').update({ timer_seconds: timerSeconds }).eq('id', activeMatch.id);
+    }
     if (timerSeconds <= 0) {
       clearInterval(timerInterval); timerInterval = null;
       showToast('⏰ Zeit abgelaufen! Bitte Ergebnis eintragen.');
-      await handleMatchDeadline();
     }
   }, 1000);
-}
-
-async function handleMatchDeadline() {
-  if (!activeMatch || !myTeam) return;
-  // Reload match to get latest results
-  const { data: match } = await supabase
-    .from('matches')
-    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-    .eq('id', activeMatch.id)
-    .maybeSingle();
-  if (!match || match.status !== 'active') return;
-
-  const a = match.team_a_result;
-  const b = match.team_b_result;
-  // Only the side that hasn't submitted gets penalized
-  // Determine winner side based on who submitted
-  let winnerSide = null;
-  let label = 'Frist abgelaufen';
-  let status = 'deadline';
-
-  if (!a && !b) {
-    // Neither submitted → both lose 1 point, no winner
-    winnerSide = null;
-  } else if (a && !b) {
-    // Only team A submitted → team A wins by default
-    winnerSide = 'A';
-  } else if (!a && b) {
-    // Only team B submitted → team B wins by default
-    winnerSide = 'B';
-  } else {
-    // Both submitted but timer ran out — evaluate normally
-    await evaluateMatch(match);
-    return;
-  }
-
-  const { data, error } = await supabase.rpc('resolve_match_outcome', {
-    p_match_id: match.id,
-    p_winner_side: winnerSide,
-    p_label: label,
-    p_status: status
-  });
-  if (error && !data?.already_finished) {
-    console.error('Deadline resolution error:', error);
-    return;
-  }
-  const msg = winnerSide
-    ? '⏰ Zeit abgelaufen! Ihr gewinnt, da der Gegner kein Ergebnis eingetragen hat.'
-    : '⏰ Zeit abgelaufen! Beide Teams erhalten −1 Punkt.';
-  await finishMatchCleanup(match, msg);
 }
 
 async function submitMatchResult(result) {
@@ -2187,8 +2018,14 @@ async function finishMatchCleanup(match, toastMessage) {
   showToast(toastMessage);
   activeMatch = null;
   isReady = false;
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  if (activeMatchesTimerInterval) { clearInterval(activeMatchesTimerInterval); activeMatchesTimerInterval = null; }
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (activeMatchesTimerInterval) {
+    clearInterval(activeMatchesTimerInterval);
+    activeMatchesTimerInterval = null;
+  }
   refreshActiveMatchUI();
   updateReadyUI();
 
@@ -2201,30 +2038,7 @@ async function finishMatchCleanup(match, toastMessage) {
     }
   }
 
-  // Recalculate and persist fairness score for BOTH teams after every match
-  await recalcAndPersistFairness(match.team_a_id);
-  await recalcAndPersistFairness(match.team_b_id);
-
   await loadAllData();
-}
-
-// Fetch team + game history and persist the freshly calculated fairness score
-async function recalcAndPersistFairness(teamId) {
-  if (!teamId) return;
-  const [{ data: team }, { data: games }] = await Promise.all([
-    supabase.from('teams').select('*').eq('id', teamId).maybeSingle(),
-    supabase.from('games').select('*')
-      .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
-      .order('created_at', { ascending: true })
-  ]);
-  if (!team) return;
-  const fairness = calculateFairnessFromHistory(team, games || []);
-  await persistFairnessScore(teamId, fairness.score);
-  // Keep local myTeam in sync
-  if (myTeam && myTeam.id === teamId) {
-    myTeam.fairness_score = fairness.score;
-    myTeam.fairness_score_cached = fairness.score;
-  }
 }
 
 async function evaluateMatch(match) {
@@ -2331,10 +2145,7 @@ async function respondExtend(accepted) {
   closeModal('incoming-extend');
   if (!pendingExtendMatchId) return;
   if (accepted) {
-    // Reset activated_at to now with 96h duration so getRemainingSeconds calculates correctly
-    const extendNow = new Date().toISOString();
-    await supabase.from('matches').update({ timer_seconds: 96*3600, activated_at: extendNow, created_at: extendNow }).eq('id', pendingExtendMatchId);
-    if (activeMatch) { activeMatch.activated_at = extendNow; activeMatch.timer_seconds = 96*3600; }
+    await supabase.from('matches').update({ timer_seconds: 96*3600 }).eq('id', pendingExtendMatchId);
     timerSeconds = 96*3600;
     showToast('✅ Verlängerung angenommen. Frist +48h.');
   } else {
@@ -2361,33 +2172,27 @@ async function loadNotifications() {
 
 function renderNotifications(items) {
   const list = document.getElementById('notif-list');
-  const mobileList = document.getElementById('mobile-notif-list');
   const badge = document.getElementById('notification-badge');
   const mobileBadge = document.getElementById('mobile-notification-badge');
+  if (!list || !badge) return;
   const unread = items.filter(n => !n.read).length;
-  const content = items.length ? items.map(n => `
-    <div class="notif-item" onclick="event.stopPropagation();openNotification(${n.id},'${n.type}','${n.related_id}')">
+  badge.style.display = unread ? 'inline-flex' : 'none';
+  badge.textContent = unread;
+  if (mobileBadge) {
+    mobileBadge.style.display = badge.style.display;
+    mobileBadge.textContent = unread;
+  }
+  list.innerHTML = items.length ? items.map(n => `
+    <div class="notif-item" onclick="openNotification(${n.id},'${n.type}','${n.related_id}')">
       <div class="notif-title">${n.title}</div>
       <div class="notif-sub">${n.sub}</div>
     </div>
   `).join('') : '<div class="notif-item"><div class="notif-sub">Keine neuen Benachrichtigungen.</div></div>';
-
-  if (list) list.innerHTML = content;
-  if (mobileList) mobileList.innerHTML = content;
-  if (badge) {
-    badge.style.display = unread ? 'inline-flex' : 'none';
-    badge.textContent = unread;
-  }
-  if (mobileBadge) {
-    mobileBadge.style.display = unread ? 'inline-flex' : 'none';
-    mobileBadge.textContent = unread;
-  }
   updateMobileActionBar();
 }
 
 async function openNotification(id, type, relatedId) {
-  document.getElementById('notif-panel')?.classList.remove('open');
-  document.getElementById('mobile-notif-panel')?.classList.remove('open');
+  document.getElementById('notif-panel').classList.remove('open');
   pendingNotifId = id;
   if (type === 'challenge') {
     pendingChallengeMatchId = relatedId;
@@ -2425,19 +2230,28 @@ async function openNotification(id, type, relatedId) {
 
 function toggleNotifications(event) {
   if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  const panel = document.getElementById('notif-panel');
+  if (!panel) return;
 
   const isMobile = window.innerWidth <= 600;
-  const desktopPanel = document.getElementById('notif-panel');
-  const mobilePanel = document.getElementById('mobile-notif-panel');
+  panel.classList.toggle('open');
 
   if (isMobile) {
-    if (!mobilePanel) return;
-    mobilePanel.classList.toggle('open');
-    if (desktopPanel) desktopPanel.classList.remove('open');
+    panel.style.position = 'fixed';
+    panel.style.right = '14px';
+    panel.style.left = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = '84px';
+    panel.style.zIndex = '270';
+    panel.style.transformOrigin = 'bottom right';
   } else {
-    if (!desktopPanel) return;
-    desktopPanel.classList.toggle('open');
-    if (mobilePanel) mobilePanel.classList.remove('open');
+    panel.style.position = 'absolute';
+    panel.style.right = '0';
+    panel.style.left = 'auto';
+    panel.style.top = '54px';
+    panel.style.bottom = 'auto';
+    panel.style.zIndex = '210';
+    panel.style.transformOrigin = 'top right';
   }
 }
 
@@ -2555,10 +2369,7 @@ function showPage(name) {
   document.getElementById('page-'+name)?.classList.add('active');
   document.getElementById('nav-'+name)?.classList.add('active');
   currentPage = name;
-  if (name === 'chat' && currentUser && myTeam) {
-    renderChatContacts();
-    renderChatBadge();
-  }
+  if (name === 'chat' && currentUser && myTeam) renderChatContacts();
 }
 
 function filterGames(liga, el) {
@@ -2586,184 +2397,20 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ─── REAL-TIME SUBSCRIPTIONS ─────────────────────────────────────────────────
-
-// Channel 1: ready_teams, games, teams (öffentlich, ungefiltert)
 supabase.channel('public-data')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, async () => {
-    await syncReadyState();
-    loadReadyTeams();
-  })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => {
-    loadGames(currentLiga);
-    loadLeaderboard(currentLBFilter);
-  })
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, async (payload) => {
-    loadLeaderboard(currentLBFilter);
-    if (myTeam && payload.new?.id === myTeam.id) {
-      myTeam = payload.new;
-      updateNavAuth();
-      updateReadyUI();
-    }
-  })
-  .subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      loadReadyTeams();
-      loadGames(currentLiga);
-    }
-  });
-
-// Channel 2: alle matches (aktive Matches-Liste für alle User sichtbar)
-// Gefiltert auf status=active damit nur relevante Events kommen
-supabase.channel('active-matches-data')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches',
-    filter: `status=eq.active` }, () => { loadActiveMatches(); })
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches',
-    filter: `status=eq.active` }, () => { loadActiveMatches(); })
-  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'matches' },
-    () => { loadActiveMatches(); })
-  // UPDATE auf nicht-active (z.B. finished) lässt sich nicht filtern → ungefiltert
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' },
-    (payload) => {
-      // Wenn ein Match seinen Status verliert (finished/declined/etc.), Liste neu laden
-      if (payload.new?.status !== 'active' && payload.old?.status === 'active') {
-        loadActiveMatches();
-      }
-    })
-  .subscribe((status) => {
-    if (status === 'SUBSCRIBED') loadActiveMatches();
-  });
-
-// Channel 2: matches gefiltert auf mein Team (team_a oder team_b)
-// Wird nach Login neu aufgebaut via setupMatchChannel()
-let _matchChannelA = null;
-let _matchChannelB = null;
-
-function setupMatchChannel() {
-  if (_matchChannelA) { supabase.removeChannel(_matchChannelA); _matchChannelA = null; }
-  if (_matchChannelB) { supabase.removeChannel(_matchChannelB); _matchChannelB = null; }
-  if (!myTeam) return;
-
-  const handleMatchChange = async () => {
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'ready_teams' }, () => loadReadyTeams())
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
     await loadOutgoingPendingChallenges();
-    await loadActiveMatch();
     loadReadyTeams();
     await loadActiveMatches();
-    const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
-    if (data) { myTeam = data; updateNavAuth(); }
-  };
-
-  // Supabase erlaubt nur einen Filter pro Channel — daher zwei Channels
-  _matchChannelA = supabase.channel('match-as-a-' + myTeam.id)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'matches',
-      filter: `team_a_id=eq.${myTeam.id}`
-    }, handleMatchChange)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') loadActiveMatch();
-    });
-
-  _matchChannelB = supabase.channel('match-as-b-' + myTeam.id)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'matches',
-      filter: `team_b_id=eq.${myTeam.id}`
-    }, handleMatchChange)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') loadActiveMatch();
-    });
-}
-
-// ─── PRIVATE REALTIME CHANNEL ────────────────────────────────────────────────
-// Handles notifications + messages for the logged-in user.
-// Uses broadcast (no RLS required) via Supabase presence/broadcast as fallback,
-// but primarily uses postgres_changes with explicit filters.
-let _privateChannel = null;
-let _privateChannelStatus = null;
-
-function setupPrivateChannel() {
-  if (_privateChannel) {
-    supabase.removeChannel(_privateChannel);
-    _privateChannel = null;
-  }
-  if (!currentUser || !myTeam) return;
-
-  const uid  = currentUser.id;
-  const tmid = myTeam.id;
-
-  _privateChannel = supabase
-    .channel('private-user-' + uid, { config: { broadcast: { self: false } } })
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'notifications',
-      filter: `user_id=eq.${uid}`
-    }, (_payload) => {
-      loadNotifications();
-    })
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: `receiver_id=eq.${tmid}`
-    }, (payload) => {
-      renderChatBadge();
-      if (currentPage === 'chat' && activeChatTeamId === payload.new.sender_id) {
-        appendMessage(payload.new);
-        supabase.from('messages').update({ read: true }).eq('id', payload.new.id).then(() => {});
-      }
-    })
-    .subscribe((status, err) => {
-      _privateChannelStatus = status;
-      if (status === 'SUBSCRIBED') {
-        // Channel is live — do an immediate refresh to catch anything missed during setup
-        loadNotifications();
-        renderChatBadge();
-      }
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn('Private channel error, retrying in 3s…', err);
-        setTimeout(() => setupPrivateChannel(), 3000);
-      }
-      if (status === 'CLOSED') {
-        // Reconnect if we're still logged in
-        if (currentUser) setTimeout(() => setupPrivateChannel(), 3000);
-      }
-    });
-}
-
-// ─── POLLING FALLBACK ────────────────────────────────────────────────────────
-// If the realtime channel isn't connected (e.g. RLS blocks it),
-// fall back to polling every 8 seconds for notifications + chat badge.
-let _pollInterval = null;
-function startPollingFallback() {
-  if (_pollInterval) return;
-  _pollInterval = setInterval(async () => {
-    if (!currentUser) return;
-    // Always keep active matches + ready teams fresh as safety net
-    loadActiveMatches();
-    loadReadyTeams();
     if (myTeam) await loadActiveMatch();
-    // Only poll notifications/badge if realtime channel isn't healthy
-    if (_privateChannelStatus !== 'SUBSCRIBED') {
-      await loadNotifications();
-      await renderChatBadge();
-    }
-  }, 5000);
-}
-function stopPollingFallback() {
-  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-}
-
-async function renderChatBadge() {
-  if (!myTeam) return;
-  const { count } = await supabase.from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('receiver_id', myTeam.id)
-    .eq('read', false);
-  const badge = document.getElementById('chat-badge');
-  if (badge) {
-    badge.style.display = count > 0 ? 'inline-flex' : 'none';
-    badge.textContent = count || '';
-  }
-}
+  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => loadGames(currentLiga))
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => loadLeaderboard(currentLBFilter))
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+    if (currentUser && payload.new.user_id === currentUser.id) loadNotifications();
+  })
+  .subscribe();
 
 // close notif panel on outside click
 document.addEventListener('click', e => {
@@ -2819,14 +2466,6 @@ window.toggleNotifications = toggleNotifications;
 window.toggleHistory = toggleHistory;
 window.saveProfile = saveProfile;
 window.renderReadyTeams = renderReadyTeams;
-window.setupPrivateChannel = setupPrivateChannel;
-window.setupMatchChannel = setupMatchChannel;
-window.renderChatBadge = renderChatBadge;
-window.startPollingFallback = startPollingFallback;
-window.stopPollingFallback = stopPollingFallback;
-window.handleMatchDeadline = handleMatchDeadline;
-window.recalcAndPersistFairness = recalcAndPersistFairness;
-window.persistFairnessScore = persistFairnessScore;
 </script>
 
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
