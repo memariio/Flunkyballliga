@@ -1359,8 +1359,6 @@ async function syncReadyState() {
 
 // ─── DATA LOADING ─────────────────────────────────────────────────────────────
 async function loadAllData() {
-  // loadActiveMatch FIRST — so the banner is always in sync before anything else renders
-  if (myTeam) await loadActiveMatch();
   await Promise.allSettled([
     loadOutgoingPendingChallenges(),
     loadReadyTeams(),
@@ -1603,52 +1601,14 @@ async function loadLeaderboard(filter) {
   }).join('');
 }
 
-async function loadActiveMatch(preferredMatchId = null) {
-  if (!myTeam) {
-    activeMatch = null;
-    refreshActiveMatchUI();
-    updateReadyUI();
-    return null;
-  }
-
-  let data = null;
-
-  // First try a direct lookup by match id when we know exactly which match just changed.
-  if (preferredMatchId) {
-    const { data: directMatch, error: directError } = await supabase
-      .from('matches')
-      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-      .eq('id', preferredMatchId)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (directError) {
-      console.error('Active match direct load error:', directError);
-    }
-
-    if (directMatch && (directMatch.team_a_id === myTeam.id || directMatch.team_b_id === myTeam.id)) {
-      data = directMatch;
-    }
-  }
-
-  // Fallback: load the newest active match for this team.
-  if (!data) {
-    const { data: matches, error } = await supabase
-      .from('matches')
-      .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
-      .or(`team_a_id.eq.${myTeam.id},team_b_id.eq.${myTeam.id}`)
-      .eq('status', 'active')
-      .order('activated_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (error) {
-      console.error('Active match load error:', error);
-    }
-
-    data = matches?.[0] || null;
-  }
-
+async function loadActiveMatch() {
+  if (!myTeam) { activeMatch = null; return; }
+  const { data } = await supabase
+    .from('matches')
+    .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
+    .or(`team_a_id.eq.${myTeam.id},team_b_id.eq.${myTeam.id}`)
+    .eq('status', 'active')
+    .maybeSingle();
   activeMatch = data || null;
   if (activeMatch) {
     timerSeconds = getRemainingSeconds(activeMatch);
@@ -1659,7 +1619,6 @@ async function loadActiveMatch(preferredMatchId = null) {
   }
   refreshActiveMatchUI();
   updateReadyUI();
-  return activeMatch;
 }
 
 // ─── FAIRNESS SYSTEM ─────────────────────────────────────────────────────────
@@ -2048,18 +2007,12 @@ async function respondChallenge(accepted) {
     const now = new Date().toISOString();
 
     // Update match to active and fetch the fresh row with all joins in one step
-    const { data: activeMatchData, error: activateError } = await supabase
+    const { data: activeMatchData } = await supabase
       .from('matches')
       .update({ status: 'active', timer_seconds: 48*3600, activated_at: now, created_at: now })
       .eq('id', pendingChallengeMatchId)
       .select('*, team_a:team_a_id(*), team_b:team_b_id(*)')
       .single();
-
-    if (activateError) {
-      console.error('Match activation error:', activateError);
-      showToast('⚠️ Match konnte nicht aktiviert werden. Bitte erneut versuchen.');
-      return;
-    }
 
     const teamAId = activeMatchData?.team_a_id || match.team_a_id;
     const teamBId = activeMatchData?.team_b_id || match.team_b_id;
@@ -2067,8 +2020,7 @@ async function respondChallenge(accepted) {
     await supabase.from('ready_teams').delete().in('team_id', [teamAId, teamBId]);
     isReady = false;
 
-    // For Team B (the accepting team): set activeMatch directly and then force a fresh reload
-    // from Supabase so the banner is reliable even if realtime arrives late.
+    // Set activeMatch directly — no need for another DB round-trip
     if (activeMatchData) {
       activeMatch = activeMatchData;
       timerSeconds = getRemainingSeconds(activeMatch);
@@ -2077,17 +2029,11 @@ async function respondChallenge(accepted) {
       refreshActiveMatchUI();
     }
     updateReadyUI();
-    await loadActiveMatch(pendingChallengeMatchId);
-    await loadOutgoingPendingChallenges();
-    await loadActiveMatches();
-    loadReadyTeams();
 
-    // For Team A (the challenger): use a dedicated notification type so their client
-    // immediately calls loadActiveMatch() without waiting for the user to click anything
     if (match.team_a?.user_id) {
       await supabase.from('notifications').insert({
         user_id: match.team_a.user_id,
-        type: 'challenge_accepted',
+        type: 'challenge_response',
         title: `✅ ${match.team_b?.name || 'Das Team'} hat angenommen`,
         sub: 'Eure Herausforderung wurde angenommen. Das Match ist jetzt aktiv.',
         related_id: pendingChallengeMatchId,
@@ -2096,7 +2042,7 @@ async function respondChallenge(accepted) {
     }
     if (pendingNotifId) await supabase.from('notifications').update({ read: true }).eq('id', pendingNotifId);
     showToast('✅ Herausforderung angenommen! Match gestartet.');
-    await loadAllData();
+    loadAllData();
   } else {
     await supabase.from('matches').update({ status: 'declined' }).eq('id', pendingChallengeMatchId);
     if (match.team_a?.user_id) {
@@ -2474,17 +2420,6 @@ async function openNotification(id, type, relatedId) {
       await loadActiveMatches();
       if (myTeam) await loadActiveMatch();
     }
-  } else if (type === 'challenge_accepted') {
-    // Team A: challenge was accepted — immediately load the active match and show the banner
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    loadNotifications();
-    if (myTeam) {
-      await loadActiveMatch(relatedId);
-      showToast('✅ Eure Herausforderung wurde angenommen! Match läuft.');
-    }
-    await loadOutgoingPendingChallenges();
-    loadReadyTeams();
-    await loadActiveMatches();
   }
 }
 
@@ -2708,10 +2643,9 @@ function setupMatchChannel() {
   if (_matchChannelB) { supabase.removeChannel(_matchChannelB); _matchChannelB = null; }
   if (!myTeam) return;
 
-  const handleMatchChange = async (payload = null) => {
-    const changedMatchId = payload?.new?.id || payload?.old?.id || null;
+  const handleMatchChange = async () => {
     await loadOutgoingPendingChallenges();
-    await loadActiveMatch(changedMatchId);
+    await loadActiveMatch();
     loadReadyTeams();
     await loadActiveMatches();
     const { data } = await supabase.from('teams').select('*').eq('id', myTeam.id).maybeSingle();
@@ -2725,7 +2659,7 @@ function setupMatchChannel() {
       filter: `team_a_id=eq.${myTeam.id}`
     }, handleMatchChange)
     .subscribe((status) => {
-      if (status === 'SUBSCRIBED') handleMatchChange();
+      if (status === 'SUBSCRIBED') loadActiveMatch();
     });
 
   _matchChannelB = supabase.channel('match-as-b-' + myTeam.id)
@@ -2734,7 +2668,7 @@ function setupMatchChannel() {
       filter: `team_b_id=eq.${myTeam.id}`
     }, handleMatchChange)
     .subscribe((status) => {
-      if (status === 'SUBSCRIBED') handleMatchChange();
+      if (status === 'SUBSCRIBED') loadActiveMatch();
     });
 }
 
@@ -2762,18 +2696,8 @@ function setupPrivateChannel() {
       schema: 'public',
       table: 'notifications',
       filter: `user_id=eq.${uid}`
-    }, (payload) => {
+    }, (_payload) => {
       loadNotifications();
-      // If the challenge was accepted, immediately load the active match for Team A
-      // so the banner appears without requiring the user to click the notification bell.
-      if (payload.new?.type === 'challenge_accepted' && myTeam) {
-        loadActiveMatch(payload.new?.related_id).then(() => {
-          if (activeMatch) showToast('✅ Eure Herausforderung wurde angenommen! Match läuft.');
-        });
-        loadReadyTeams();
-        loadOutgoingPendingChallenges();
-        loadActiveMatches();
-      }
     })
     .on('postgres_changes', {
       event: 'INSERT',
