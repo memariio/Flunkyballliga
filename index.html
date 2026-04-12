@@ -279,6 +279,7 @@ document.addEventListener('click', (e) => {
     display: flex; align-items: center; justify-content: center; font-size: 3rem;
     flex-shrink: 0;
   }
+  .profile-avatar:hover #prof-avatar-overlay { display: flex !important; }
   .profile-details { flex: 1; }
   .profile-name { font-size: 1.6rem; font-weight: 800; color: var(--white); }
   .profile-location { color: var(--gray); font-size: 0.88rem; margin-top: 4px; }
@@ -809,8 +810,22 @@ document.addEventListener('click', (e) => {
     <button class="btn-primary" onclick="openAuthModal()">Login</button>
   </div>
   <div id="profile-content" class="hidden-force">
-    <div class="profile-header">
-      <div class="profile-avatar" id="prof-avatar">🍺</div>
+    <div class="profile-header" style="position:relative">
+      <!-- Edit-Button rechts oben -->
+      <button class="btn-secondary" id="profile-edit-btn" onclick="openModal('profile-edit')" style="display:none;position:absolute;top:1rem;right:1rem;font-size:0.78rem;padding:5px 12px">✏️ Bearbeiten</button>
+
+      <!-- Avatar mit Upload-Trigger -->
+      <div class="profile-avatar" id="prof-avatar-wrap" style="position:relative;cursor:default">
+        <img id="prof-avatar-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px;display:none"/>
+        <span id="prof-avatar-emoji">🍺</span>
+        <!-- Hover-Overlay nur für eigenes Profil -->
+        <div id="prof-avatar-overlay" style="display:none;position:absolute;inset:0;background:#00000088;border-radius:14px;align-items:center;justify-content:center;font-size:0.7rem;color:#fff;font-weight:700;text-align:center;cursor:pointer;flex-direction:column;gap:2px" onclick="document.getElementById('avatar-file-input').click()">
+          <span style="font-size:1.2rem">📷</span>
+          <span>Ändern</span>
+        </div>
+        <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(event)"/>
+      </div>
+
       <div class="profile-details">
         <div class="profile-name" id="prof-name">–</div>
         <div class="profile-location">📍 <span id="prof-location">–</span></div>
@@ -847,7 +862,6 @@ document.addEventListener('click', (e) => {
         </div>
         <div class="profile-actions">
           <button class="btn-primary" id="profile-chat-btn" onclick="openChatForSelectedTeam()" style="display:none">💬 Schreiben</button>
-          <button class="btn-secondary" id="profile-edit-btn" onclick="openModal('profile-edit')">✏️ Profil bearbeiten</button>
         </div>
       </div>
     </div>
@@ -1073,6 +1087,19 @@ document.addEventListener('click', (e) => {
     <div class="modal-title">✏️ Profil bearbeiten</div>
     <div class="modal-body">
       <div class="form-row">
+        <label class="form-label">Profilbild</label>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0">
+            <img id="edit-avatar-preview" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none;border-radius:12px"/>
+            <span id="edit-avatar-emoji-preview">🍺</span>
+          </div>
+          <div style="flex:1">
+            <button class="btn-secondary" style="font-size:0.78rem;padding:6px 12px;width:100%" onclick="document.getElementById('avatar-file-input').click()">📷 Bild hochladen</button>
+            <div style="font-size:0.7rem;color:var(--gray);margin-top:4px">Max. 200KB · JPG, PNG, WebP · wird quadratisch zugeschnitten</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
         <label class="form-label">Team-Name</label>
         <input class="form-input" id="edit-name" type="text"/>
       </div>
@@ -1085,7 +1112,7 @@ document.addEventListener('click', (e) => {
         <textarea class="form-input" id="edit-bio" rows="3" style="resize:vertical"></textarea>
       </div>
       <div class="form-row">
-        <label class="form-label">Team-Emoji</label>
+        <label class="form-label">Team-Emoji (Fallback wenn kein Bild)</label>
         <input class="form-input" id="edit-emoji" type="text" maxlength="4" style="font-size:1.4rem"/>
       </div>
     </div>
@@ -1149,6 +1176,13 @@ let lastLiveRefreshAt = 0;
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const ligaLabels = { bronze:'🥉 Bronze', silver:'🥈 Silber', gold:'🥇 Gold', platin:'💎 Platin', diamond:'💠 Diamant' };
+
+function teamAvatarHtml(team, size = 46, radius = 12) {
+  if (team?.avatar_url) {
+    return `<img src="${team.avatar_url}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:${radius}px;border:1px solid var(--border);flex-shrink:0"/>`;
+  }
+  return `<div class="team-avatar" style="width:${size}px;height:${size}px;border-radius:${radius}px">${team?.emoji || '🍺'}</div>`;
+}
 function ligaBadge(liga) {
   return `<span class="liga-badge liga-${liga || 'bronze'}">${ligaLabels[liga] || liga || '–'}</span>`;
 }
@@ -1627,7 +1661,7 @@ async function loadReadyTeams() {
 
     return `
       <div class="ready-card ${isMe ? 'my-team' : ''} ${!isMe && !challengeAllowed ? 'locked' : ''}">
-        <div class="team-avatar">${t.emoji || '🍺'}</div>
+        ${teamAvatarHtml(t, 46, 12)}
         <div class="ready-info">
           <div class="ready-name">
             <span class="clickable-name" onclick="openTeamProfile('${t.id}')">${t.name}</span>
@@ -1772,10 +1806,13 @@ async function loadLeaderboard(filter) {
     return `
       <div class="lb-row ${isMe?'me':''}">
         <div class="lb-rank ${cls}">${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank}</div>
-        <div class="lb-name-row">
-          <div class="lb-name"><span class="clickable-name" onclick="openTeamProfile('${t.id}')">${t.emoji||'🍺'} ${t.name}</span>${isMe?' <span style="font-size:0.72rem;color:var(--green)">(Du)</span>':''}</div>
-          <div class="lb-location">📍 ${t.ort||'–'} · ${ligaBadge(t.liga)}</div>
-          ${inPromo ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;background:#ffd70018;border:1px solid #ffd70055;border-radius:6px;padding:2px 8px;font-size:0.7rem;font-weight:700;color:var(--gold)">🏆 Aufstieg möglich</div>` : ''}
+        <div style="display:flex;align-items:center;gap:10px">
+          ${teamAvatarHtml(t, 36, 9)}
+          <div class="lb-name-row">
+            <div class="lb-name"><span class="clickable-name" onclick="openTeamProfile('${t.id}')">${t.name}</span>${isMe?' <span style="font-size:0.72rem;color:var(--green)">(Du)</span>':''}</div>
+            <div class="lb-location">📍 ${t.ort||'–'} · ${ligaBadge(t.liga)}</div>
+            ${inPromo ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;background:#ffd70018;border:1px solid #ffd70055;border-radius:6px;padding:2px 8px;font-size:0.7rem;font-weight:700;color:var(--gold)">🏆 Aufstieg möglich</div>` : ''}
+          </div>
         </div>
         <div class="lb-pts">${t.pts||0} Pkt</div>
       </div>
@@ -1907,7 +1944,33 @@ function updateFloatingButtonsVisibility() {
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
 async function loadProfile(team) {
   if (!team) return;
-  document.getElementById('prof-avatar').textContent = team.emoji || '🍺';
+
+  // Avatar: Bild oder Emoji
+  const avatarImg = document.getElementById('prof-avatar-img');
+  const avatarEmoji = document.getElementById('prof-avatar-emoji');
+  const avatarOverlay = document.getElementById('prof-avatar-overlay');
+  const avatarWrap = document.getElementById('prof-avatar-wrap');
+
+  if (team.avatar_url) {
+    avatarImg.src = team.avatar_url;
+    avatarImg.style.display = 'block';
+    avatarEmoji.style.display = 'none';
+  } else {
+    avatarImg.style.display = 'none';
+    avatarEmoji.style.display = 'block';
+    avatarEmoji.textContent = team.emoji || '🍺';
+  }
+
+  const isMyProfile = myTeam && team.id === myTeam.id;
+  if (avatarOverlay) avatarOverlay.style.display = isMyProfile ? 'none' : 'none'; // shown on hover via CSS only for own profile
+  if (avatarWrap) avatarWrap.style.cursor = isMyProfile ? 'pointer' : 'default';
+  if (avatarOverlay) avatarOverlay.style.pointerEvents = isMyProfile ? 'auto' : 'none';
+  // Show overlay on hover only for own profile
+  if (avatarWrap) {
+    avatarWrap.onmouseenter = isMyProfile ? () => { avatarOverlay.style.display = 'flex'; } : null;
+    avatarWrap.onmouseleave = isMyProfile ? () => { avatarOverlay.style.display = 'none'; } : null;
+  }
+
   document.getElementById('prof-name').textContent = team.name;
   document.getElementById('prof-location').textContent = team.ort || '–';
   document.getElementById('prof-bio').textContent = team.bio || '';
@@ -1920,7 +1983,6 @@ async function loadProfile(team) {
   document.getElementById('prof-deadline-missed').textContent = Number(team?.deadline_missed) || 0;
   document.getElementById('prof-no-show').textContent = Number(team?.no_show) || 0;
 
-  const isMyProfile = myTeam && team.id === myTeam.id;
   document.getElementById('profile-chat-btn').style.display = isMyProfile ? 'none' : 'inline-block';
   document.getElementById('profile-edit-btn').style.display = isMyProfile ? 'inline-block' : 'none';
 
@@ -1929,6 +1991,18 @@ async function loadProfile(team) {
     document.getElementById('edit-location').value = team.ort || '';
     document.getElementById('edit-bio').value = team.bio || '';
     document.getElementById('edit-emoji').value = team.emoji || '🍺';
+    // Edit modal avatar preview
+    const editPreviewImg = document.getElementById('edit-avatar-preview');
+    const editPreviewEmoji = document.getElementById('edit-avatar-emoji-preview');
+    if (team.avatar_url) {
+      editPreviewImg.src = team.avatar_url;
+      editPreviewImg.style.display = 'block';
+      editPreviewEmoji.style.display = 'none';
+    } else {
+      editPreviewImg.style.display = 'none';
+      editPreviewEmoji.style.display = 'block';
+      editPreviewEmoji.textContent = team.emoji || '🍺';
+    }
   }
 
   const { data: games } = await supabase
@@ -1995,6 +2069,61 @@ function gotoProfile() {
     showPage('profile');
     updateAuthViews();
   }
+}
+
+async function uploadAvatar(event) {
+  const file = event.target.files[0];
+  if (!file || !myTeam || !currentUser) return;
+
+  // Größencheck: max 200KB
+  if (file.size > 200 * 1024) {
+    showToast('❌ Bild zu groß! Maximal 200KB erlaubt.');
+    event.target.value = '';
+    return;
+  }
+
+  // Typ-Check
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+    showToast('❌ Nur JPG, PNG oder WebP erlaubt.');
+    event.target.value = '';
+    return;
+  }
+
+  showToast('⏳ Bild wird hochgeladen…');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const path = `avatars/${myTeam.id}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('team-avatars')
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) {
+    showToast('❌ Upload fehlgeschlagen: ' + uploadError.message);
+    return;
+  }
+
+  const { data: urlData } = supabase.storage.from('team-avatars').getPublicUrl(path);
+  const publicUrl = urlData?.publicUrl + '?t=' + Date.now(); // cache-bust
+
+  const { data, error } = await supabase.from('teams')
+    .update({ avatar_url: publicUrl })
+    .eq('id', myTeam.id)
+    .select().single();
+
+  if (error) { showToast('❌ Fehler beim Speichern der URL.'); return; }
+
+  myTeam = data;
+
+  // Previews aktualisieren
+  const editPreviewImg = document.getElementById('edit-avatar-preview');
+  const editPreviewEmoji = document.getElementById('edit-avatar-emoji-preview');
+  if (editPreviewImg) { editPreviewImg.src = publicUrl; editPreviewImg.style.display = 'block'; }
+  if (editPreviewEmoji) editPreviewEmoji.style.display = 'none';
+
+  await loadProfile(myTeam);
+  showToast('✅ Profilbild gespeichert!');
+  event.target.value = '';
 }
 
 async function saveProfile() {
@@ -2969,6 +3098,7 @@ window.respondExtend = respondExtend;
 window.toggleNotifications = toggleNotifications;
 window.toggleHistory = toggleHistory;
 window.saveProfile = saveProfile;
+window.uploadAvatar = uploadAvatar;
 window.renderReadyTeams = renderReadyTeams;
 </script>
 
