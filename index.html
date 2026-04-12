@@ -755,7 +755,6 @@ document.addEventListener('click', (e) => {
       <div class="promotion-banner-main">Aufstiegsmatch möglich!</div>
       <div class="promotion-banner-sub" id="promotion-banner-sub">Du hast 20 Punkte erreicht – fordere ein Team heraus und steige auf!</div>
     </div>
-    <div class="promotion-banner-badge">🥇 Aufstieg!</div>
   </div>
 
   <div class="section-title"> Jetzt Bereit <span style="margin-left:4px;color:var(--green)" id="ready-count">0 Teams</span></div>
@@ -1769,12 +1768,14 @@ async function loadLeaderboard(filter) {
     const rank = i+1;
     const cls = rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
     const isMe = myTeam && t.id === myTeam.id;
+    const inPromo = isInPromotion(t);
     return `
       <div class="lb-row ${isMe?'me':''}">
         <div class="lb-rank ${cls}">${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank}</div>
         <div class="lb-name-row">
           <div class="lb-name"><span class="clickable-name" onclick="openTeamProfile('${t.id}')">${t.emoji||'🍺'} ${t.name}</span>${isMe?' <span style="font-size:0.72rem;color:var(--green)">(Du)</span>':''}</div>
           <div class="lb-location">📍 ${t.ort||'–'} · ${ligaBadge(t.liga)}</div>
+          ${inPromo ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;background:#ffd70018;border:1px solid #ffd70055;border-radius:6px;padding:2px 8px;font-size:0.7rem;font-weight:700;color:var(--gold)">🏆 Aufstieg möglich</div>` : ''}
         </div>
         <div class="lb-pts">${t.pts||0} Pkt</div>
       </div>
