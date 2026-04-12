@@ -216,6 +216,10 @@ document.addEventListener('click', (e) => {
     cursor: pointer; font-family: 'Syne', sans-serif; transition: 0.2s; white-space: nowrap;
   }
   .challenge-btn:hover { background: var(--green); color: #080c0a; }
+  .challenge-btn.promo-challenge {
+    background: #ffd70022; color: var(--gold); border-color: #ffd70066;
+  }
+  .challenge-btn.promo-challenge:hover { background: var(--gold); color: #1a0f00; }
 
   /* ── RECENT GAMES ── */
   .liga-tabs { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -544,6 +548,51 @@ document.addEventListener('click', (e) => {
   .notif-item:last-child { border-bottom: none; }
   .notif-title { font-weight: 700; color: var(--white); font-size: 0.88rem; }
   .notif-sub { font-size: 0.76rem; color: var(--gray); margin-top: 3px; }
+  /* ── PROMOTION BANNER ── */
+  .promotion-banner {
+    display: none;
+    background: linear-gradient(135deg, #1a0f00, #2a1800);
+    border: 2px solid var(--gold);
+    border-radius: 16px; padding: 1.1rem 1.4rem;
+    margin-bottom: 1.5rem;
+    align-items: center; gap: 1rem;
+    position: relative; overflow: hidden;
+    box-shadow: 0 0 30px #ffd70030;
+    animation: promo-glow 2s ease-in-out infinite;
+  }
+  @keyframes promo-glow { 0%,100%{box-shadow:0 0 18px #ffd70030} 50%{box-shadow:0 0 36px #ffd70060} }
+  .promotion-banner.show { display: flex; }
+  .promotion-banner::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    animation: shimmer 2s infinite;
+  }
+  .promotion-banner-icon { font-size: 2.2rem; flex-shrink: 0; }
+  .promotion-banner-info { flex: 1; }
+  .promotion-banner-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gold); font-weight: 700; }
+  .promotion-banner-main { font-size: 1.1rem; font-weight: 800; color: var(--white); margin-top: 2px; }
+  .promotion-banner-sub { font-size: 0.8rem; color: #d4a017; margin-top: 3px; }
+  .promotion-banner-badge {
+    background: var(--gold); color: #1a0f00; font-size: 0.8rem; font-weight: 800;
+    padding: 8px 16px; border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── PROMOTION BAR (Profile) ── */
+  .promotion-profile-bar {
+    display: none;
+    margin-top: 1rem;
+    background: linear-gradient(135deg, #1a0f00, #2a1800);
+    border: 2px solid var(--gold);
+    border-radius: 12px; padding: 0.9rem 1.2rem;
+    align-items: center; gap: 10px;
+    animation: promo-glow 2s ease-in-out infinite;
+  }
+  .promotion-profile-bar.show { display: flex; }
+  .promotion-profile-bar-icon { font-size: 1.5rem; }
+  .promotion-profile-bar-text { font-size: 0.9rem; font-weight: 800; color: var(--gold); flex: 1; }
+  .promotion-profile-bar-sub { font-size: 0.75rem; color: #d4a017; margin-top: 2px; }
+
   .ready-card.locked { border-color: #ef444466; }
   .ready-rule-bad { color: var(--red); font-size: 0.74rem; margin-top: 8px; }
   .hidden { display:none !important; }
@@ -698,6 +747,17 @@ document.addEventListener('click', (e) => {
     </div>
   </div>
 
+  <!-- Aufstiegsmatch-Banner -->
+  <div class="promotion-banner" id="promotion-banner">
+    <div class="promotion-banner-icon">🏆</div>
+    <div class="promotion-banner-info">
+      <div class="promotion-banner-title">⚡ Aufstieg möglich</div>
+      <div class="promotion-banner-main">Aufstiegsmatch möglich!</div>
+      <div class="promotion-banner-sub" id="promotion-banner-sub">Du hast 20 Punkte erreicht – fordere ein Team heraus und steige auf!</div>
+    </div>
+    <div class="promotion-banner-badge">🥇 Aufstieg!</div>
+  </div>
+
   <div class="section-title"> Jetzt Bereit <span style="margin-left:4px;color:var(--green)" id="ready-count">0 Teams</span></div>
   <div class="ready-search-wrap">
     <input class="chat-search-input" id="ready-city-search" type="text" placeholder="Nach Stadt suchen..." oninput="renderReadyTeams()" />
@@ -777,6 +837,14 @@ document.addEventListener('click', (e) => {
         <div class="pts-bar-wrap">
           <div class="pts-bar-label"><span>0 Pkt</span><span style="color:var(--green);font-weight:700" id="prof-progress-label">0 / 20 Pkt</span><span>20 Pkt → Aufstieg</span></div>
           <div class="pts-bar-bg"><div class="pts-bar-fill" id="prof-progress-fill" style="width:0%"></div></div>
+        </div>
+        <!-- Aufstiegsmatch-Bar im Profil -->
+        <div class="promotion-profile-bar" id="promotion-profile-bar">
+          <div class="promotion-profile-bar-icon">🏆</div>
+          <div>
+            <div class="promotion-profile-bar-text">Aufstiegsmatch möglich!</div>
+            <div class="promotion-profile-bar-sub">Du hast 20 Punkte – fordere ein Team heraus und steige auf!</div>
+          </div>
         </div>
         <div class="profile-actions">
           <button class="btn-primary" id="profile-chat-btn" onclick="openChatForSelectedTeam()" style="display:none">💬 Schreiben</button>
@@ -1163,12 +1231,67 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('de-DE');
 }
-function isInPromotion(team) {
-  return !!team && (team.pts || 0) >= 20;
+const LIGA_ORDER = { bronze: 1, silver: 2, gold: 3, platin: 4, diamond: 5 };
+function ligaRank(liga) { return LIGA_ORDER[liga] || 0; }
+function nextLigaOf(liga) {
+  const next = Object.entries(LIGA_ORDER).find(([,v]) => v === ligaRank(liga) + 1);
+  return next ? next[0] : null;
 }
+
+function isInPromotion(team) {
+  if (!team) return false;
+  if (team.liga === 'diamond') return false; // Diamant hat kein Punktelimit
+  return (team.pts || 0) >= 20;
+}
+
+// Darf `challengerTeam` das `targetTeam` herausfordern?
+function canChallengeTeam(targetTeam, challengerTeam) {
+  if (!targetTeam || !challengerTeam) return false;
+  if (targetTeam.id === challengerTeam.id) return false;
+
+  const targetInPromo = isInPromotion(targetTeam);
+  const challengerInPromo = isInPromotion(challengerTeam);
+  const sameLiga = targetTeam.liga === challengerTeam.liga;
+  const challengerIsNextLiga = nextLigaOf(targetTeam.liga) === challengerTeam.liga;   // challenger ist höher
+  const targetIsNextLiga = nextLigaOf(challengerTeam.liga) === targetTeam.liga;        // target ist höher
+
+  if (targetInPromo) {
+    // Aufstiegsteam kann herausgefordert werden von:
+    // 1) gleiches Liga-Aufstiegsteam (Aufstieg vs. Aufstieg)
+    // 2) Team aus der nächsthöheren Liga (egal ob im Aufstieg)
+    return (sameLiga && challengerInPromo) || challengerIsNextLiga;
+  } else {
+    if (challengerInPromo) {
+      // Aufstiegsteam darf herausfordern:
+      // 1) normales Team aus der nächsthöheren Liga
+      return targetIsNextLiga;
+    }
+    // Normales Team → normales Team:
+    // gleiche Liga ODER challenger fordert nächsthöhere Liga heraus (aber nicht andersrum)
+    return sameLiga || targetIsNextLiga;
+  }
+}
+
+// Legacy-Compat: wird noch intern genutzt
 function isBlockedByPromotion(targetTeam, challengerTeam) {
   if (!targetTeam || !challengerTeam) return false;
-  return targetTeam.liga === challengerTeam.liga && isInPromotion(targetTeam) && !isInPromotion(challengerTeam);
+  if (!myTeam) return false;
+  return !canChallengeTeam(targetTeam, challengerTeam);
+}
+
+function updatePromotionBanners() {
+  const homeBanner = document.getElementById('promotion-banner');
+  const profBar = document.getElementById('promotion-profile-bar');
+  const inPromo = myTeam && isInPromotion(myTeam);
+
+  if (homeBanner) homeBanner.classList.toggle('show', !!inPromo);
+  if (profBar) profBar.classList.toggle('show', !!inPromo);
+
+  if (inPromo && homeBanner) {
+    const ligaNames = { bronze:'Bronze', silver:'Silber', gold:'Gold', platin:'Platin' };
+    const sub = document.getElementById('promotion-banner-sub');
+    if (sub) sub.textContent = `Du hast 20 Punkte in der ${ligaNames[myTeam.liga] || myTeam.liga}-Liga – fordere jetzt ein Team heraus und steige auf!`;
+  }
 }
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1371,6 +1494,7 @@ function updateNavAuth() {
     loggedOut.style.display = 'flex';
     if (mobileTeamName) mobileTeamName.textContent = '';
   }
+  updatePromotionBanners();
 }
 
 function updateAuthViews() {
@@ -1465,31 +1589,51 @@ async function loadReadyTeams() {
     const t = r.teams;
     const isMe = myTeam && t.id === myTeam.id;
     const alreadyChallenged = challengedTeamIds.has(t.id);
-    const blockedByPromotion = !!(myTeam && !isMe && isBlockedByPromotion(t, myTeam));
-    const canChallenge = !!(myTeam && !isMe && !activeMatch && t.liga === myTeam.liga && !alreadyChallenged && !blockedByPromotion);
+    const targetInPromo = isInPromotion(t);
+    const myInPromo = myTeam && isInPromotion(myTeam);
+    const challengerIsNextLiga = myTeam && nextLigaOf(t.liga) === myTeam.liga;
+    const targetIsNextLiga = myTeam && nextLigaOf(myTeam.liga) === t.liga;
+    const challengeAllowed = myTeam && !isMe && !activeMatch && !alreadyChallenged && canChallengeTeam(t, myTeam);
 
     let btnLabel = 'Login';
     let btnTitle = '';
+    let promoHint = '';
+
     if (alreadyChallenged) {
       btnLabel = 'Herausgefordert!';
-    } else if (canChallenge) {
-      btnLabel = 'Herausfordern';
-    } else if (blockedByPromotion) {
-      btnLabel = 'Gesperrt';
-      btnTitle = 'Dieses Team befindet sich im Aufstieg';
-    } else if (myTeam) {
+    } else if (challengeAllowed) {
+      if (targetInPromo && myInPromo) {
+        btnLabel = '🏆 Aufstiegsmatch';
+        promoHint = 'Aufstiegsmatch – beide Teams kämpfen um den Aufstieg!';
+      } else if (targetInPromo && challengerIsNextLiga) {
+        btnLabel = '⚔️ Herausfordern';
+        promoHint = 'Du spielst aus der höheren Liga gegen dieses Aufstiegsteam.';
+      } else if (myInPromo && targetIsNextLiga && !targetInPromo) {
+        btnLabel = '🏆 Aufstiegsmatch';
+        promoHint = 'Du hast 20 Punkte – fordere dieses Team aus der nächsthöheren Liga heraus!';
+      } else if (!myInPromo && targetIsNextLiga && !targetInPromo) {
+        btnLabel = '⬆️ Herausfordern';
+        promoHint = 'Herausforderung in die nächsthöhere Liga!';
+      } else {
+        btnLabel = 'Herausfordern';
+      }
+    } else if (myTeam && !isMe) {
+      if (targetInPromo && !myInPromo && !challengerIsNextLiga) {
+        btnTitle = 'Im Aufstieg – nur andere Aufstiegsteams oder höhere Liga';
+      }
       btnLabel = 'Gesperrt';
     }
 
     const fairnessInfo = getReadyTeamFairness(t);
 
     return `
-      <div class="ready-card ${isMe ? 'my-team' : ''} ${!isMe && !canChallenge ? 'locked' : ''}">
+      <div class="ready-card ${isMe ? 'my-team' : ''} ${!isMe && !challengeAllowed ? 'locked' : ''}">
         <div class="team-avatar">${t.emoji || '🍺'}</div>
         <div class="ready-info">
           <div class="ready-name">
             <span class="clickable-name" onclick="openTeamProfile('${t.id}')">${t.name}</span>
             ${isMe ? '<span style="font-size:0.72rem;color:var(--green)">(Dein Team)</span>' : ''}
+            ${targetInPromo && !isMe ? '<span style="font-size:0.72rem;color:var(--gold);margin-left:4px">🏆 Aufstieg</span>' : ''}
           </div>
           <div class="ready-meta">
             ${ligaBadge(t.liga)} ${t.pts || 0} Pkt
@@ -1500,10 +1644,11 @@ async function loadReadyTeams() {
           <div class="ready-meta" style="margin-top:6px">
             <span class="ready-fairness-badge ${fairnessInfo.shortClass}">${fairnessInfo.label}</span>
           </div>
+          ${promoHint ? `<div style="font-size:0.72rem;color:var(--gold);margin-top:4px">${promoHint}</div>` : ''}
           ${btnTitle ? `<div style="font-size:0.72rem;color:#f97316;margin-top:4px">${btnTitle}</div>` : ''}
         </div>
         ${!isMe ? '<div class="ready-dot"></div>' : ''}
-        ${!isMe ? `<button class="challenge-btn" ${canChallenge ? `onclick="openChallenge('${t.id}')"` : 'disabled style="opacity:0.45;cursor:not-allowed"'}>${btnLabel}</button>` : ''}
+        ${!isMe ? `<button class="challenge-btn ${targetInPromo && challengeAllowed ? 'promo-challenge' : ''}" ${challengeAllowed ? `onclick="openChallenge('${t.id}')"` : 'disabled style="opacity:0.45;cursor:not-allowed"'}>${btnLabel}</button>` : ''}
       </div>
     `;
   }).join('') || `<div class="empty-state"><div class="empty-state-icon">🔍</div>Keine Teams für diese Stadt gefunden.</div>`;
@@ -1808,6 +1953,7 @@ async function loadProfile(team) {
     : '<div class="mini-note">Noch keine Matchhistory.</div>';
 
   if (currentPage === 'home') loadReadyTeams();
+  updatePromotionBanners();
 }
 
 function renderGameRow(g, teamId) {
@@ -1951,14 +2097,16 @@ async function openChallenge(targetTeamId) {
   if (!currentUser || !myTeam) { openAuthModal(); return; }
   const { data: t } = await supabase.from('teams').select('*').eq('id', targetTeamId).maybeSingle();
   if (!t) return;
-  if (isBlockedByPromotion(t, myTeam)) {
-    showToast('🚫 Dieses Team befindet sich im Aufstieg');
+  if (!canChallengeTeam(t, myTeam)) {
+    showToast('🚫 Diese Herausforderung ist nicht erlaubt.');
     return;
   }
   pendingChallengeTarget = t;
   const { data: rt } = await supabase.from('ready_teams').select('*').eq('team_id', t.id).maybeSingle();
-  document.getElementById('modal-challenge-title').textContent = `⚔️ ${t.name} herausfordern`;
+  const isPromoMatch = isInPromotion(t) && (isInPromotion(myTeam) || nextLigaOf(t.liga) === myTeam.liga);
+  document.getElementById('modal-challenge-title').textContent = isPromoMatch ? `🏆 Aufstiegsmatch gegen ${t.name}` : `⚔️ ${t.name} herausfordern`;
   document.getElementById('modal-challenge-body').innerHTML = `
+    ${isPromoMatch ? `<div style="background:#ffd70015;border:1px solid #ffd70044;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--gold);font-weight:700">🏆 Das ist ein Aufstiegsmatch! Der Gewinner steigt auf.</div>` : ''}
     <p><strong style="color:var(--white)">${t.name}</strong> ist bereit für ein Spiel.</p>
     <div style="margin:1rem 0;padding:1rem;background:var(--card2);border-radius:10px;border:1px solid var(--border)">
       ${rt?.ort ? `<div>📍 <strong>Ort:</strong> ${rt.ort}</div>` : '<div style="color:var(--gray)">📍 Kein Ort angegeben</div>'}
@@ -1973,9 +2121,9 @@ async function openChallenge(targetTeamId) {
 
 async function sendChallenge() {
   if (!myTeam || !pendingChallengeTarget) return;
-  if (isBlockedByPromotion(pendingChallengeTarget, myTeam)) {
+  if (!canChallengeTeam(pendingChallengeTarget, myTeam)) {
     closeModal('challenge');
-    showToast('🚫 Dieses Team befindet sich im Aufstieg');
+    showToast('🚫 Diese Herausforderung ist nicht erlaubt.');
     return;
   }
   if (challengedTeamIds.has(pendingChallengeTarget.id)) {
@@ -1984,6 +2132,7 @@ async function sendChallenge() {
     return;
   }
   closeModal('challenge');
+  const isPromoMatch = isInPromotion(pendingChallengeTarget);
   // create pending match
   const { data: match, error } = await supabase.from('matches').insert({
     team_a_id: myTeam.id,
@@ -1997,14 +2146,14 @@ async function sendChallenge() {
   await supabase.from('notifications').insert({
     user_id: pendingChallengeTarget.user_id,
     type: 'challenge',
-    title: `Herausforderung von ${myTeam.name}`,
-    sub: `${myTeam.name} möchte gegen euch spielen!`,
+    title: isPromoMatch ? `🏆 Aufstiegsmatch-Anfrage von ${myTeam.name}` : `Herausforderung von ${myTeam.name}`,
+    sub: isPromoMatch ? `${myTeam.name} fordert euch zu einem Aufstiegsmatch heraus!` : `${myTeam.name} möchte gegen euch spielen!`,
     related_id: match.id,
     read: false
   });
   challengedTeamIds.add(pendingChallengeTarget.id);
   loadReadyTeams();
-  showToast(`📨 Herausforderung an ${pendingChallengeTarget.name} gesendet!`);
+  showToast(isPromoMatch ? `🏆 Aufstiegsmatch-Anfrage an ${pendingChallengeTarget.name} gesendet!` : `📨 Herausforderung an ${pendingChallengeTarget.name} gesendet!`);
 }
 
 async function respondChallenge(accepted) {
