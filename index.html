@@ -1236,7 +1236,7 @@ document.addEventListener('click', (e) => {
 /* === REAL ASSETS: BANNER + SEASON 1 BADGE === */
 .profile-banner-placeholder.real-banner,
 .banner-option.real-banner {
-  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -1316,7 +1316,7 @@ document.addEventListener('click', (e) => {
   right: 0;
   height: 145px;
   border-radius: 18px 18px 0 0;
-  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -1382,7 +1382,7 @@ document.addEventListener('click', (e) => {
 }
 
 .profile-banner-choice.banner-sleep {
-  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
 }
 
 .profile-banner-choice.banner-default {
@@ -1463,7 +1463,7 @@ document.addEventListener('click', (e) => {
 }
 
 .profile-edit-banner-card.banner-sleep {
-  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
   background-position: center;
 }
@@ -1540,7 +1540,7 @@ document.addEventListener('click', (e) => {
 }
 
 .profile-edit-banner-card.banner-sleep {
-  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
   background-position: center;
 }
@@ -1953,26 +1953,19 @@ document.addEventListener('click', (e) => {
         </div>
       </div>
     </div>
-    
     <div class="card trophy-cabinet" id="trophy-cabinet">
       <div class="flex-between">
         <div>
           <div style="font-size:1.05rem;font-weight:900;color:var(--white);font-family:'Outfit',sans-serif">Pokalschrank</div>
-          <div style="font-size:.82rem;color:var(--gray);margin-top:3px">Deine präsentierten Achievement-Badges</div>
+          <div style="font-size:.82rem;color:var(--gray);margin-top:3px">Deine freigeschalteten Achievement-Badges</div>
         </div>
-        <button class="btn-secondary" id="trophy-toggle-btn" onclick="toggleTrophyCabinet()">Alle anzeigen</button>
       </div>
-      <div class="trophy-showcase">
-        <div class="badge-tile"><div class="badge-icon badge-img"><img src="assets/badges/Badge-Season1.png" alt="Season 1 Badge"></div><div class="badge-name">Season 1</div><div class="badge-sub">Bierpass</div></div>
-        <div class="badge-tile"><div class="badge-icon">🔥</div><div class="badge-name">Siegesserie</div><div class="badge-sub">Achievement</div></div>
-        <div class="badge-tile"><div class="badge-icon">🍺</div><div class="badge-name">Durstlöscher</div><div class="badge-sub">Bierpass</div></div>
+      <div class="empty-state" id="trophy-empty-state" style="margin-top:1rem;margin-bottom:0">
+        <div style="font-weight:900;color:#0c54fc;margin-bottom:.35rem">Noch keine Badges freigeschaltet</div>
+        Deine Badges erscheinen hier erst, wenn du sie wirklich freigeschaltet hast.
       </div>
-      <div class="trophy-extra" id="trophy-extra">
-        <div class="badge-tile"><div class="badge-icon">🤝</div><div class="badge-name">Neue Gegner</div><div class="badge-sub">Achievement</div></div>
-        <div class="badge-tile"><div class="badge-icon">📅</div><div class="badge-name">Wochenkrieger</div><div class="badge-sub">Achievement</div></div>
-        <div class="badge-tile"><div class="badge-icon">⚡</div><div class="badge-name">Vielspieler</div><div class="badge-sub">Achievement</div></div>
-      </div>
-      <div class="banner-edit-placeholder"></div>
+      <div class="trophy-showcase" id="trophy-showcase" style="display:none"></div>
+      <div class="trophy-extra" id="trophy-extra"></div>
     </div>
 
     <div class="profile-subcards">
@@ -2221,30 +2214,6 @@ document.addEventListener('click', (e) => {
         <label class="form-label">Profilbeschreibung</label>
         <textarea class="form-input" id="edit-bio" rows="3" style="resize:vertical"></textarea>
       </div>
-
-      <div class="profile-edit-banner-picker">
-        <div class="profile-edit-banner-title">Profilbanner auswählen</div>
-        <div class="profile-edit-banner-grid">
-          <button type="button" class="profile-edit-banner-card banner-sleep active" onclick="selectProfileHeaderBanner('sleep', this)">
-            <span>Biermann</span>
-          </button>
-          <button type="button" class="profile-edit-banner-card banner-default" onclick="selectProfileHeaderBanner('default', this)">
-            <span>Standard</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <label class="form-label">Team-Emoji (Fallback wenn kein Bild)</label>
-        <input class="form-input" id="edit-emoji" type="text" maxlength="4" style="font-size:1.4rem"/>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('profile-edit')">Abbrechen</button>
-      <button class="btn-primary" onclick="saveProfile()"> Speichern</button>
-    </div>
-  </div>
-</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toast-text"></span></div>
@@ -4339,7 +4308,7 @@ function selectProfileHeaderBanner(kind, btn){
   const banner = document.getElementById('active-profile-banner');
   if(!banner) return;
   if(kind === 'sleep'){
-    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
     banner.style.backgroundSize = 'cover';
     banner.style.backgroundPosition = 'center';
   } else {
@@ -4352,7 +4321,7 @@ function selectProfileHeaderBanner(kind, btn){
 
 document.addEventListener('DOMContentLoaded',()=>{
   try{
-    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'default';
     const btn = saved === 'sleep' ? document.querySelector('.profile-banner-choice.banner-sleep') : document.querySelector('.profile-banner-choice.banner-default');
     selectProfileHeaderBanner(saved, btn);
   }catch(e){}
@@ -4365,7 +4334,7 @@ function selectProfileHeaderBanner(kind, btn){
   const banner = document.getElementById('active-profile-banner');
   if(!banner) return;
   if(kind === 'sleep'){
-    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
     banner.style.backgroundSize = 'cover';
     banner.style.backgroundPosition = 'center';
   } else {
@@ -4380,7 +4349,7 @@ function selectProfileHeaderBanner(kind, btn){
 
 document.addEventListener('DOMContentLoaded',()=>{
   try{
-    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'default';
     const selector = saved === 'sleep'
       ? '.profile-edit-banner-card.banner-sleep, .profile-banner-choice.banner-sleep'
       : '.profile-edit-banner-card.banner-default, .profile-banner-choice.banner-default';
@@ -4397,7 +4366,7 @@ function selectProfileHeaderBanner(kind, btn){
   if(!banner) return;
 
   if(kind === 'sleep'){
-    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
     banner.style.backgroundSize = 'cover';
     banner.style.backgroundPosition = 'center';
   } else {
@@ -4412,7 +4381,7 @@ function selectProfileHeaderBanner(kind, btn){
 
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'default';
     const btn = saved === 'sleep'
       ? document.querySelector('.profile-edit-banner-card.banner-sleep')
       : document.querySelector('.profile-edit-banner-card.banner-default');
@@ -4432,7 +4401,7 @@ function applyProfileHeaderBanner(kind) {
   if (kind === 'default') {
     banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
   } else {
-    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
     banner.style.backgroundSize = 'cover';
     banner.style.backgroundPosition = 'center';
   }
@@ -4488,6 +4457,31 @@ function claimQuestReward(btn){
 }
 function claimBeerpassReward(btn){
   if (typeof showToast === 'function') showToast('Belohnungen werden bald mit Supabase aktiviert.');
+}
+</script>
+
+
+<script>
+/* Live-safe: no badge/banner is granted automatically.
+   Later Supabase will fill trophy cabinet and unlocked banner picker. */
+function renderUnlockedBadgesFromSupabase(badges){
+  const empty = document.getElementById('trophy-empty-state');
+  const showcase = document.getElementById('trophy-showcase');
+  if(!showcase) return;
+  showcase.innerHTML = '';
+  if(!badges || !badges.length){
+    if(empty) empty.style.display = 'block';
+    showcase.style.display = 'none';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  showcase.style.display = 'grid';
+  badges.slice(0,3).forEach(b=>{
+    const tile=document.createElement('div');
+    tile.className='badge-tile';
+    tile.innerHTML=`<div class="badge-icon badge-img"><img src="${b.image_url}" alt=""></div><div class="badge-name">${b.title}</div><div class="badge-sub">Freigeschaltet</div>`;
+    showcase.appendChild(tile);
+  });
 }
 </script>
 
