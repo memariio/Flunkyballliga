@@ -1656,6 +1656,132 @@ document.addEventListener('click', (e) => {
   line-height: 1.45;
 }
 
+
+/* === LIVE SUPABASE PROFILE REWARDS === */
+.profile-header {
+  position: relative;
+  overflow: hidden;
+  padding-top: 150px !important;
+}
+
+.profile-banner-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 145px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(135deg,#0c54fc,#5a9af4);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.profile-header > *:not(.profile-banner-header) {
+  position: relative;
+  z-index: 1;
+}
+
+.profile-avatar {
+  margin-top: -125px;
+  background: rgba(255,255,255,0.92) !important;
+  border: 3px solid rgba(255,255,255,0.95) !important;
+  box-shadow: 0 8px 24px rgba(5,12,58,0.16);
+}
+
+.profile-edit-banner-picker {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(12,84,252,0.06);
+  border: 1px solid rgba(12,84,252,0.16);
+}
+
+.profile-edit-banner-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.55rem;
+}
+
+.profile-edit-banner-empty {
+  font-size: .85rem;
+  color: var(--gray);
+  line-height: 1.45;
+}
+
+.profile-banner-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+  gap: .75rem;
+}
+
+.profile-banner-choice-card {
+  height: 76px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  box-shadow: 0 6px 18px rgba(12,84,252,.14);
+  transition: .18s ease;
+}
+
+.profile-banner-choice-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(12,84,252,.20);
+}
+
+.profile-banner-choice-card.active {
+  border-color: #0c54fc;
+  box-shadow: 0 0 0 3px rgba(12,84,252,.12), 0 10px 26px rgba(12,84,252,.24);
+}
+
+.profile-banner-choice-card span {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  background: rgba(5,12,58,.58);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: .72rem;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+.badge-icon.badge-img {
+  background: transparent;
+  box-shadow: none;
+  width: 58px;
+  height: 58px;
+  border-radius: 0;
+}
+
+.badge-icon.badge-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+@media(max-width:700px){
+  .profile-header {
+    padding-top: 132px !important;
+  }
+  .profile-banner-header {
+    height: 128px;
+  }
+  .profile-avatar {
+    margin-top: -110px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1918,6 +2044,7 @@ document.addEventListener('click', (e) => {
   </div>
   <div id="profile-content" class="hidden-force">
     <div class="profile-header" style="position:relative">
+      <div class="profile-banner-header" id="active-profile-banner"></div>
       <!-- Edit-Button rechts oben -->
       <button class="btn-secondary" id="profile-edit-btn" onclick="openModal('profile-edit')" style="display:none;position:absolute;top:1rem;right:1rem;font-size:0.78rem;padding:5px 12px">️ Bearbeiten</button>
 
@@ -2246,7 +2373,7 @@ document.addEventListener('click', (e) => {
 
       <div class="profile-edit-banner-picker">
         <div class="profile-edit-banner-title">Profilbanner</div>
-        <div class="profile-edit-banner-empty">Noch keine Banner freigeschaltet</div>
+        <div id="profile-banner-picker-body" class="profile-edit-banner-empty">Noch keine Banner freigeschaltet</div>
       </div>
 
       <div class="form-row">
@@ -3087,6 +3214,170 @@ function updateFloatingButtonsVisibility() {
 }
 
 // ─── PROFILE ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+let pendingActiveBannerId = null;
+let currentUnlockedBanners = [];
+
+function setProfileBannerVisual(imageUrl) {
+  const banner = document.getElementById('active-profile-banner');
+  if (!banner) return;
+  if (imageUrl) {
+    banner.style.backgroundImage = `url('${imageUrl}')`;
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  } else {
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+  }
+}
+
+function renderBadgeTile(badge, sub = 'Freigeschaltet') {
+  const title = escapeHtml(badge?.title || 'Badge');
+  const img = badge?.image_url
+    ? `<div class="badge-icon badge-img"><img src="${escapeHtml(badge.image_url)}" alt=""></div>`
+    : `<div class="badge-icon">🏆</div>`;
+  return `<div class="badge-tile">${img}<div class="badge-name">${title}</div><div class="badge-sub">${escapeHtml(sub)}</div></div>`;
+}
+
+function renderTrophyCabinet(badges) {
+  const empty = document.getElementById('trophy-empty-state');
+  const showcase = document.getElementById('trophy-showcase');
+  const extra = document.getElementById('trophy-extra');
+  if (!showcase || !extra) return;
+
+  const list = Array.isArray(badges) ? badges : [];
+  showcase.innerHTML = '';
+  extra.innerHTML = '';
+
+  if (!list.length) {
+    if (empty) empty.style.display = 'block';
+    showcase.style.display = 'none';
+    extra.classList.remove('open');
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+  showcase.style.display = 'grid';
+
+  list.slice(0, 3).forEach(b => showcase.insertAdjacentHTML('beforeend', renderBadgeTile(b)));
+  list.slice(3).forEach(b => extra.insertAdjacentHTML('beforeend', renderBadgeTile(b)));
+
+  const btn = document.getElementById('trophy-toggle-btn');
+  if (btn) btn.style.display = list.length > 3 ? 'inline-flex' : 'none';
+}
+
+function selectUnlockedBanner(bannerId) {
+  pendingActiveBannerId = bannerId;
+  document.querySelectorAll('.profile-banner-choice-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.bannerId === bannerId);
+  });
+  const found = currentUnlockedBanners.find(b => b.id === bannerId);
+  setProfileBannerVisual(found?.image_url || null);
+}
+
+function renderBannerPicker(banners, activeBannerId) {
+  const body = document.getElementById('profile-banner-picker-body');
+  if (!body) return;
+
+  currentUnlockedBanners = Array.isArray(banners) ? banners : [];
+  pendingActiveBannerId = activeBannerId || currentUnlockedBanners[0]?.id || null;
+
+  if (!currentUnlockedBanners.length) {
+    body.className = 'profile-edit-banner-empty';
+    body.innerHTML = 'Noch keine Banner freigeschaltet';
+    return;
+  }
+
+  body.className = '';
+  body.innerHTML = `<div class="profile-banner-choice-grid">
+    ${currentUnlockedBanners.map(b => `
+      <button type="button"
+        class="profile-banner-choice-card ${b.id === pendingActiveBannerId ? 'active' : ''}"
+        data-banner-id="${escapeHtml(b.id)}"
+        onclick="selectUnlockedBanner('${escapeHtml(b.id)}')"
+        style="background-image:url('${escapeHtml(b.image_url || '')}')">
+        <span>${escapeHtml(b.title || 'Banner')}</span>
+      </button>
+    `).join('')}
+  </div>`;
+}
+
+async function loadProfileRewards(team, isMyProfile) {
+  if (!team?.id) return;
+
+  let badges = [];
+  let banners = [];
+  let activeBannerId = null;
+
+  try {
+    const { data, error } = await supabase
+      .from('team_badges')
+      .select('unlocked_at, badges(id,title,image_url,rarity)')
+      .eq('team_id', team.id)
+      .order('unlocked_at', { ascending: false });
+
+    if (!error && data) {
+      badges = data.map(row => row.badges).filter(Boolean);
+    }
+  } catch (e) {
+    console.warn('team_badges konnte nicht geladen werden', e);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('team_banners')
+      .select('unlocked_at, profile_banners(id,title,image_url,banner_key)')
+      .eq('team_id', team.id)
+      .order('unlocked_at', { ascending: false });
+
+    if (!error && data) {
+      banners = data.map(row => row.profile_banners).filter(Boolean);
+    }
+  } catch (e) {
+    console.warn('team_banners konnte nicht geladen werden', e);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('team_profile_customization')
+      .select('active_banner_id')
+      .eq('team_id', team.id)
+      .maybeSingle();
+
+    if (!error && data) activeBannerId = data.active_banner_id;
+  } catch (e) {
+    console.warn('team_profile_customization konnte nicht geladen werden', e);
+  }
+
+  const activeBanner = banners.find(b => b.id === activeBannerId) || null;
+  setProfileBannerVisual(activeBanner?.image_url || null);
+  renderTrophyCabinet(badges);
+
+  if (isMyProfile) renderBannerPicker(banners, activeBanner?.id || null);
+}
+
+async function saveSelectedProfileBannerToSupabase() {
+  if (!myTeam?.id || !pendingActiveBannerId) return;
+
+  const { error } = await supabase
+    .from('team_profile_customization')
+    .upsert({
+      team_id: myTeam.id,
+      active_banner_id: pendingActiveBannerId,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'team_id' });
+
+  if (error) {
+    console.warn('Banner konnte nicht gespeichert werden', error);
+    showToast('Banner konnte nicht gespeichert werden.');
+  }
+}
+
 async function loadProfile(team) {
   if (!team) return;
 
@@ -3149,6 +3440,8 @@ async function loadProfile(team) {
       editPreviewEmoji.textContent = team.emoji || '';
     }
   }
+
+  await loadProfileRewards(team, isMyProfile);
 
   const { data: games } = await supabase
     .from('games')
@@ -3280,10 +3573,9 @@ async function saveProfile() {
   const { data, error } = await supabase.from('teams').update({ name: name||myTeam.name, ort, bio, emoji }).eq('id', myTeam.id).select().single();
   if (error) { showToast('Fehler beim Speichern.'); return; }
   myTeam = data;
-  saveSelectedProfileBanner();
+  await saveSelectedProfileBannerToSupabase();
   closeModal('profile-edit');
   loadProfile(myTeam);
-  setTimeout(initProfileBannerPicker, 80);
   updateNavAuth();
   showToast(' Profil gespeichert!');
 }
