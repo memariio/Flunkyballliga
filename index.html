@@ -1631,6 +1631,31 @@ document.addEventListener('click', (e) => {
   }
 }
 
+
+/* === PROFILE EDIT BANNER EMPTY SECTION FIX === */
+.profile-edit-banner-picker {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(12,84,252,0.06);
+  border: 1px solid rgba(12,84,252,0.16);
+}
+
+.profile-edit-banner-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.55rem;
+}
+
+.profile-edit-banner-empty {
+  font-size: .85rem;
+  color: var(--gray);
+  line-height: 1.45;
+}
+
 </style>
 </head>
 <body>
@@ -1957,12 +1982,12 @@ document.addEventListener('click', (e) => {
       <div class="flex-between">
         <div>
           <div style="font-size:1.05rem;font-weight:900;color:var(--white);font-family:'Outfit',sans-serif">Pokalschrank</div>
-          <div style="font-size:.82rem;color:var(--gray);margin-top:3px">Deine freigeschalteten Achievement-Badges</div>
+          <div style="font-size:.82rem;color:var(--gray);margin-top:3px"></div>
         </div>
       </div>
       <div class="empty-state" id="trophy-empty-state" style="margin-top:1rem;margin-bottom:0">
         <div style="font-weight:900;color:#0c54fc;margin-bottom:.35rem">Noch keine Badges freigeschaltet</div>
-        Deine Badges erscheinen hier erst, wenn du sie wirklich freigeschaltet hast.
+        
       </div>
       <div class="trophy-showcase" id="trophy-showcase" style="display:none"></div>
       <div class="trophy-extra" id="trophy-extra"></div>
@@ -2184,10 +2209,11 @@ document.addEventListener('click', (e) => {
   </div>
 </div>
 
+
 <!-- Profile Edit Modal -->
 <div class="modal-bg hidden" id="modal-profile-edit">
   <div class="modal">
-    <div class="modal-title">️ Profil bearbeiten</div>
+    <div class="modal-title">Profil bearbeiten</div>
     <div class="modal-body">
       <div class="form-row">
         <label class="form-label">Profilbild</label>
@@ -2197,23 +2223,44 @@ document.addEventListener('click', (e) => {
             <span id="edit-avatar-emoji-preview"></span>
           </div>
           <div style="flex:1">
-            <button class="btn-secondary" style="font-size:0.78rem;padding:6px 12px;width:100%" onclick="document.getElementById('avatar-file-input').click()"> Bild hochladen</button>
+            <button class="btn-secondary" style="font-size:0.78rem;padding:6px 12px;width:100%" onclick="document.getElementById('avatar-file-input').click()">Bild hochladen</button>
             <div style="font-size:0.7rem;color:var(--gray);margin-top:4px">Max. 200KB · JPG, PNG, WebP · wird quadratisch zugeschnitten</div>
           </div>
         </div>
       </div>
+
       <div class="form-row">
         <label class="form-label">Team-Name</label>
         <input class="form-input" id="edit-name" type="text"/>
       </div>
+
       <div class="form-row">
         <label class="form-label">Heimatort</label>
         <input class="form-input" id="edit-location" type="text"/>
       </div>
+
       <div class="form-row">
         <label class="form-label">Profilbeschreibung</label>
         <textarea class="form-input" id="edit-bio" rows="3" style="resize:vertical"></textarea>
       </div>
+
+      <div class="profile-edit-banner-picker">
+        <div class="profile-edit-banner-title">Profilbanner</div>
+        <div class="profile-edit-banner-empty">Noch keine Banner freigeschaltet</div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">Team-Emoji (Fallback wenn kein Bild)</label>
+        <input class="form-input" id="edit-emoji" type="text" maxlength="4" style="font-size:1.4rem"/>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('profile-edit')">Abbrechen</button>
+      <button class="btn-primary" onclick="saveProfile()">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toast-text"></span></div>
