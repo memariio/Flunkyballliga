@@ -4053,6 +4053,26 @@ async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts 
   }
 }
 
+
+async function processBierpassForMatchRpc(matchId, winnerSide, status) {
+  if (!matchId) return;
+  try {
+    const { data, error } = await supabase.rpc('process_bierpass_for_match', {
+      p_match_id: matchId,
+      p_winner_side: winnerSide || null,
+      p_status: status || 'normal'
+    });
+    if (error) {
+      console.warn('Bierpass RPC Fehler:', error);
+      if (typeof showToast === 'function') showToast('Bierpass konnte nicht aktualisiert werden.');
+      return;
+    }
+    console.log('Bierpass aktualisiert:', data);
+  } catch (e) {
+    console.warn('Bierpass RPC Exception:', e);
+  }
+}
+
 async function evaluateMatch(match) {
   const a = match.team_a_result;
   const b = match.team_b_result;
@@ -4071,7 +4091,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
-    if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, 'B', 'no_show', { isFirstOpponentMatch });
+    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'B', 'no_show');
     await finishMatchCleanup(match, '️ Aufgegeben. Match beendet.');
     return;
   }
@@ -4083,7 +4103,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
-    if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, 'A', 'no_show', { isFirstOpponentMatch });
+    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'A', 'no_show');
     await finishMatchCleanup(match, ' Gegner hat aufgegeben. Match beendet.');
     return;
   }
@@ -4134,7 +4154,7 @@ async function evaluateMatch(match) {
     return;
   }
 
-  if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, winnerSide, status, { isFirstOpponentMatch });
+  if (!data?.already_finished) await processBierpassForMatchRpc(match.id, winnerSide, status);
   await finishMatchCleanup(match, ' Ergebnis bestätigt! Match beendet.');
 }
 
