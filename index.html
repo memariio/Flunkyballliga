@@ -1055,6 +1055,582 @@ document.addEventListener('click', (e) => {
   margin-bottom: 1rem;
 }
 
+
+/* === BIERPASS FRONTEND MOCKUP === */
+.bierpass-section{margin:0 0 1.5rem;width:100%}
+.bierpass-preview{border-radius:18px;overflow:hidden;box-shadow:var(--glass-shadow-lg);border:1px solid var(--glass-border);cursor:pointer;background:#fff;position:relative}
+.bierpass-preview img{display:block;width:100%;height:auto}
+.bierpass-panel{display:none;position:relative;height:560px;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#fff,#edf2fc);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow-lg)}
+.bierpass-panel.open{display:block}
+.bierpass-close{position:absolute;top:10px;right:12px;z-index:5;border:0;background:transparent;color:#0c54fc;font-size:1.8rem;font-weight:900;cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1}
+.bierpass-close:hover{color:#050c3a}
+.bierpass-scroll{height:100%;overflow-y:auto;padding:1.2rem;scrollbar-width:thin;scrollbar-color:rgba(12,84,252,.32) transparent}
+.bierpass-head{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem;padding-right:2.6rem}
+.bierpass-title{font-family:'Outfit',sans-serif;font-weight:900;color:#050c3a;font-size:1.8rem;line-height:1.05}
+.bierpass-sub{color:#5a72a8;font-size:.88rem;margin-top:.35rem;line-height:1.45}
+.bierpass-points{background:#0c54fc;color:white;border-radius:14px;padding:.8rem 1rem;text-align:center;font-weight:900;box-shadow:0 8px 24px rgba(12,84,252,.28);min-width:125px}
+.bierpass-layout{display:grid;grid-template-columns:110px 1fr;gap:1rem;align-items:start}
+.beer-track-card,.bierpass-card{background:rgba(255,255,255,.88);border:1px solid var(--glass-border);border-radius:16px;padding:1rem;box-shadow:var(--glass-shadow)}
+.beer-track-card{position:sticky;top:0}
+.beer-track{height:450px;width:22px;background:rgba(12,84,252,.12);border-radius:999px;margin:auto;position:relative;overflow:hidden}
+.beer-track-fill{position:absolute;top:0!important;bottom:auto!important;width:100%;height:0%;background:linear-gradient(180deg,#5a9af4,#0c54fc);border-radius:999px;box-shadow:0 0 18px rgba(12,84,252,.35)}
+.beer-track-marker{position:absolute;left:50%;transform:translateX(-50%);width:42px;height:2px;background:rgba(5,12,58,.22)}
+.beer-track-marker.claimed{background:#0c54fc;box-shadow:0 0 10px rgba(12,84,252,.45)}
+.beer-track-label{font-size:.7rem;color:#5a72a8;text-align:center;margin-top:.7rem;line-height:1.45}
+.quest-list{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.quest-card,.reward-row{background:rgba(237,242,252,.82);border:1px solid rgba(12,84,252,.12);border-radius:14px;padding:.85rem}
+.quest-title,.reward-name{font-weight:900;color:#050c3a}
+.quest-desc,.reward-type{font-size:.75rem;color:#5a72a8;margin-top:.2rem;line-height:1.35}
+.quest-bp{display:inline-block;background:#0c54fc;color:#fff;border-radius:999px;padding:3px 8px;font-size:.68rem;font-weight:900;margin-top:.55rem}
+.quest-progress-text{display:flex;justify-content:space-between;color:#5a72a8;font-size:.72rem;font-weight:800;margin-top:.65rem}
+.quest-progress{height:8px;border-radius:999px;background:rgba(12,84,252,.12);overflow:hidden;margin-top:.35rem}
+.quest-progress-fill{height:100%;background:linear-gradient(90deg,#0c54fc,#5a9af4);border-radius:999px}
+.quest-claim{margin-top:.65rem;border:0;border-radius:10px;background:#0c54fc;color:#fff;font-weight:900;padding:7px 10px;cursor:pointer}
+.quest-claim.locked{background:rgba(12,84,252,.1);color:#5a72a8;cursor:default}
+.reward-list{display:flex;flex-direction:column;gap:.65rem}
+.reward-row{display:grid;grid-template-columns:70px 1fr auto;gap:.75rem;align-items:center}
+.reward-row.claimable{border-color:rgba(12,84,252,.35);box-shadow:0 0 0 3px rgba(12,84,252,.07)}
+.reward-points{font-family:'Space Mono',monospace;font-weight:900;color:#0c54fc}
+.reward-status{
+  border:none;
+  border-radius:10px;
+  background:#0c54fc;
+  color:#fff;
+  padding:7px 12px;
+  font-size:.75rem;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 6px 18px rgba(12,84,252,.28);
+  transition:all .2s ease;
+}
+.reward-status.claimed{background:rgba(22,163,74,.12);color:#16a34a}
+.reward-status.locked{background:rgba(122,144,192,.12);color:#7a90c0}
+.trophy-cabinet{margin-top:1rem}
+.trophy-showcase,.trophy-extra{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:.85rem}
+.trophy-extra{display:none}.trophy-extra.open{display:grid}
+.badge-tile{text-align:center;background:rgba(237,242,252,.82);border-radius:14px;padding:.8rem;border:1px solid rgba(12,84,252,.12);min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.badge-icon{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0c54fc,#5a9af4);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto .5rem;font-size:1.3rem;box-shadow:0 6px 18px rgba(12,84,252,.22)}
+.badge-name{font-weight:900;color:#050c3a;font-size:.8rem}.badge-sub{color:#5a72a8;font-size:.68rem}
+.profile-banner-placeholder{height:92px;border-radius:16px;background:linear-gradient(90deg,rgba(5,12,58,.9),rgba(12,84,252,.75));margin-bottom:1rem;color:#fff;font-family:'Outfit',sans-serif;font-weight:900;display:flex;align-items:center;padding:1rem;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(12,84,252,.22)}
+.profile-banner-placeholder::after{content:'';position:absolute;right:-30px;top:-35px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.18)}
+.banner-edit-placeholder{margin-top:.85rem;padding:.85rem;border-radius:14px;background:rgba(12,84,252,.06);border:1px dashed rgba(12,84,252,.28);color:#5a72a8;font-size:.8rem;line-height:1.45}
+@media(max-width:700px){
+  .bierpass-panel{height:520px}
+  .bierpass-scroll{padding:.9rem}
+  .bierpass-head{flex-direction:column}
+  .bierpass-layout{grid-template-columns:64px 1fr;gap:.75rem}
+  .beer-track-card{padding:.8rem .45rem}
+  .beer-track{height:520px;width:16px}
+  .beer-track-marker{width:28px}
+  .quest-list{grid-template-columns:1fr}
+  .reward-row{grid-template-columns:55px 1fr}
+  .reward-status{
+  border:none;
+  border-radius:10px;
+  background:#0c54fc;
+  color:#fff;
+  padding:7px 12px;
+  font-size:.75rem;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 6px 18px rgba(12,84,252,.28);
+  transition:all .2s ease;
+}
+  .trophy-showcase{gap:.5rem}
+  .badge-tile{padding:.55rem;min-height:98px}
+}
+
+
+/* === BIERPASS PATCH: TOP-DOWN BAR, CLAIM BUTTONS, PROFILE SPACING, BANNER PLACEHOLDER === */
+.beer-track-fill{
+  top:0 !important;
+  bottom:auto !important;
+}
+
+.beer-track-marker{
+  display:none !important;
+}
+
+.trophy-cabinet{
+  margin-bottom:2rem !important;
+}
+
+.profile-banner-placeholder{
+  background:
+    linear-gradient(90deg,rgba(5,12,58,.92),rgba(12,84,252,.72)),
+    linear-gradient(135deg,#0c54fc,#5a9af4) !important;
+}
+
+.profile-banner-placeholder.banner-style-1{
+  background:
+    linear-gradient(90deg,rgba(5,12,58,.92),rgba(12,84,252,.72)),
+    linear-gradient(135deg,#0c54fc,#5a9af4) !important;
+}
+
+.profile-banner-placeholder.banner-style-2{
+  background:
+    linear-gradient(90deg,rgba(5,12,58,.92),rgba(30,142,200,.78)),
+    linear-gradient(135deg,#1e8ec8,#5a9af4) !important;
+}
+
+.profile-banner-placeholder.banner-style-3{
+  background:
+    linear-gradient(90deg,rgba(5,12,58,.94),rgba(13,30,156,.78)),
+    linear-gradient(135deg,#050c3a,#0d1e9c) !important;
+}
+
+.banner-picker{
+  margin-top:.85rem;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.65rem;
+}
+
+.banner-option{
+  border:none;
+  border-radius:12px;
+  height:58px;
+  cursor:pointer;
+  color:#fff;
+  font-weight:900;
+  font-family:'DM Sans',sans-serif;
+  box-shadow:0 6px 18px rgba(12,84,252,.18);
+}
+
+.banner-option:nth-child(1){
+  background:linear-gradient(135deg,#0c54fc,#5a9af4);
+}
+.banner-option:nth-child(2){
+  background:linear-gradient(135deg,#1e8ec8,#5a9af4);
+}
+.banner-option:nth-child(3){
+  background:linear-gradient(135deg,#050c3a,#0d1e9c);
+}
+
+.banner-option.active{
+  outline:3px solid rgba(12,84,252,.22);
+  box-shadow:0 0 0 3px rgba(255,255,255,.9),0 8px 24px rgba(12,84,252,.28);
+}
+
+
+.reward-status:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 26px rgba(12,84,252,.35);
+}
+
+.reward-status.claimed{
+  background:rgba(22,163,74,.12);
+  color:#16a34a;
+  box-shadow:none;
+  cursor:default;
+}
+
+.reward-status.locked{
+  background:rgba(122,144,192,.12);
+  color:#7a90c0;
+  box-shadow:none;
+  cursor:default;
+}
+
+
+/* === REAL ASSETS: BANNER + SEASON 1 BADGE === */
+.profile-banner-placeholder.real-banner,
+.banner-option.real-banner {
+  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.profile-banner-placeholder.real-banner {
+  height: 120px;
+  color: transparent;
+}
+
+.banner-option.real-banner {
+  color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-option.real-banner::after {
+  content: 'Season 1';
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.25);
+}
+
+.badge-icon.badge-img {
+  background: transparent;
+  box-shadow: none;
+  width: 58px;
+  height: 58px;
+  border-radius: 0;
+}
+
+.badge-icon.badge-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.reward-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.78);
+  box-shadow: 0 4px 14px rgba(12,84,252,0.12);
+}
+
+.reward-row.with-thumb {
+  grid-template-columns: 70px 46px 1fr auto;
+}
+
+@media(max-width:700px){
+  .reward-row.with-thumb{
+    grid-template-columns: 55px 42px 1fr;
+  }
+  .reward-row.with-thumb .reward-status{
+    grid-column:1/-1;
+  }
+}
+
+
+/* === PROFILE BANNER HEADER + EDIT PICKER === */
+.profile-header {
+  position: relative;
+  overflow: hidden;
+  padding-top: 150px !important;
+}
+
+.profile-banner-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 145px;
+  border-radius: 18px 18px 0 0;
+  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.profile-header > *:not(.profile-banner-header) {
+  position: relative;
+  z-index: 1;
+}
+
+.profile-avatar {
+  margin-top: -125px;
+  background: rgba(255,255,255,0.92) !important;
+  border: 3px solid rgba(255,255,255,0.95) !important;
+  box-shadow: 0 8px 24px rgba(5,12,58,0.16);
+}
+
+.profile-banner-placeholder {
+  display: none !important;
+}
+
+.profile-banner-edit-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(12,84,252,0.06);
+  border: 1px dashed rgba(12,84,252,0.28);
+}
+
+.profile-banner-edit-title {
+  font-weight: 900;
+  color: var(--white);
+  font-family: 'Outfit',sans-serif;
+  margin-bottom: .65rem;
+}
+
+.profile-banner-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+  gap: .75rem;
+}
+
+.profile-banner-choice {
+  height: 72px;
+  border: none;
+  border-radius: 13px;
+  overflow: hidden;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  font-weight: 900;
+  font-family: 'DM Sans',sans-serif;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
+  box-shadow: 0 6px 18px rgba(12,84,252,.16);
+  position: relative;
+}
+
+.profile-banner-choice.active {
+  outline: 3px solid rgba(12,84,252,.3);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 8px 24px rgba(12,84,252,.28);
+}
+
+.profile-banner-choice.banner-sleep {
+  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+}
+
+.profile-banner-choice.banner-default {
+  background: linear-gradient(135deg,#0c54fc,#5a9af4);
+}
+
+.reward-thumb.banner-thumb {
+  width: 64px;
+  height: 36px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.reward-row.with-thumb.banner-reward {
+  grid-template-columns: 70px 70px 1fr auto;
+}
+
+@media(max-width:700px){
+  .profile-header {
+    padding-top: 132px !important;
+  }
+  .profile-banner-header {
+    height: 128px;
+  }
+  .profile-avatar {
+    margin-top: -110px;
+  }
+  .reward-row.with-thumb.banner-reward {
+    grid-template-columns: 55px 64px 1fr;
+  }
+  .reward-row.with-thumb.banner-reward .reward-status {
+    grid-column:1/-1;
+  }
+}
+
+
+/* === PROFILE EDIT MENU: BANNER CARD PICKER === */
+.profile-edit-banner-picker {
+  margin: 1rem 0;
+}
+
+.profile-edit-banner-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.55rem;
+}
+
+.profile-edit-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.profile-edit-banner-card {
+  min-height: 88px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  background: rgba(12,84,252,0.08);
+  box-shadow: 0 6px 18px rgba(12,84,252,0.14);
+  transition: 0.18s ease;
+}
+
+.profile-edit-banner-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(12,84,252,0.20);
+}
+
+.profile-edit-banner-card.active {
+  border-color: #0c54fc;
+  box-shadow: 0 0 0 3px rgba(12,84,252,0.12), 0 10px 26px rgba(12,84,252,0.24);
+}
+
+.profile-edit-banner-card.banner-sleep {
+  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.profile-edit-banner-card.banner-default {
+  background: linear-gradient(135deg,#0c54fc,#5a9af4);
+}
+
+.profile-edit-banner-card span {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  background: rgba(5,12,58,0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+@media(max-width:700px) {
+  .profile-edit-banner-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* === SICHTBAR IM PROFIL-BEARBEITEN-MENÜ: BANNER AUSWAHL === */
+.profile-edit-banner-picker {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(12,84,252,0.06);
+  border: 1px solid rgba(12,84,252,0.16);
+}
+
+.profile-edit-banner-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.65rem;
+}
+
+.profile-edit-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.profile-edit-banner-card {
+  height: 86px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  background: rgba(12,84,252,0.08);
+  box-shadow: 0 6px 18px rgba(12,84,252,0.14);
+  transition: 0.18s ease;
+}
+
+.profile-edit-banner-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(12,84,252,0.20);
+}
+
+.profile-edit-banner-card.active {
+  border-color: #0c54fc;
+  box-shadow: 0 0 0 3px rgba(12,84,252,0.12), 0 10px 26px rgba(12,84,252,0.24);
+}
+
+.profile-edit-banner-card.banner-sleep {
+  background-image: url('assets/banners/BannerBiermannSchlafend.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.profile-edit-banner-card.banner-default {
+  background: linear-gradient(135deg,#0c54fc,#5a9af4);
+}
+
+.profile-edit-banner-card span {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  background: rgba(5,12,58,0.58);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+@media(max-width:700px){
+  .profile-edit-banner-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Banner selection saved-state helper */
+.profile-edit-banner-card.pending {
+  border-color: #0c54fc;
+}
+
+
+/* === LIVE BIERPASS: released rewards + coming soon locked rewards === */
+.reward-row.coming-soon {
+  opacity: .72;
+  background: rgba(237,242,252,.58);
+  border-style: dashed;
+}
+
+.reward-status.coming-soon-status {
+  border:none;
+  background: rgba(122,144,192,.14);
+  color: #7a90c0;
+  box-shadow:none;
+  cursor: default;
+  pointer-events:none;
+}
+
+.reward-status.locked {
+  cursor: default !important;
+  pointer-events:none;
+}
+
+.reward-thumb {
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  object-fit:contain;
+  background:rgba(255,255,255,.78);
+  box-shadow:0 4px 14px rgba(12,84,252,.12);
+}
+
+.reward-thumb.banner-thumb {
+  width:64px;
+  height:36px;
+  border-radius:9px;
+  object-fit:cover;
+}
+
+.reward-row.with-thumb {
+  grid-template-columns:70px 46px 1fr auto;
+}
+
+.reward-row.with-thumb.banner-reward {
+  grid-template-columns:70px 70px 1fr auto;
+}
+
+@media(max-width:700px){
+  .reward-row.with-thumb,
+  .reward-row.with-thumb.banner-reward {
+    grid-template-columns:55px 48px 1fr;
+  }
+  .reward-row.with-thumb .reward-status,
+  .reward-row.with-thumb.banner-reward .reward-status {
+    grid-column:1/-1;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1165,6 +1741,105 @@ document.addEventListener('click', (e) => {
     </div>
   </div>
 
+  
+  <div class="bierpass-section" id="bierpass-section">
+    <div class="bierpass-preview" id="bierpass-preview" onclick="toggleBierpass(event)">
+      <img src="Bierpass.png" alt="Bierpass">
+    </div>
+    <div class="bierpass-panel" id="bierpass-panel">
+      <button class="bierpass-close" onclick="closeBierpass(event)" aria-label="Bierpass schließen">×</button>
+      <div class="bierpass-scroll">
+        <div class="bierpass-head">
+          <div>
+            <div class="bierpass-title">Dein Bierpass</div>
+            <div class="bierpass-sub">Sammle Bierpunkte, erledige wiederholbare Quests und schalte Belohnungen frei.</div>
+          </div>
+          <div class="bierpass-points">0<br><span style="font-size:.7rem">Bierpunkte</span></div>
+        </div>
+        <div class="bierpass-layout">
+          <div class="beer-track-card">
+            <div class="beer-track">
+              <div class="beer-track-fill"></div>
+            </div>
+            <div class="beer-track-label">0 / 1500 BP<br>Nächste: 50 BP</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1rem">
+            <div class="bierpass-card">
+              <div style="font-weight:900;color:#050c3a;margin-bottom:.8rem">Aktive Quests</div>
+              <div class="quest-list">
+                <div class="quest-card" data-bp="10"><div class="quest-title">Spiel absolvieren</div><div class="quest-desc">Schließe ein Match ab.</div><span class="quest-bp">10 BP</span><div class="quest-progress-text"><span>0 / 1</span><span>offen</span></div><div class="quest-progress"><div class="quest-progress-fill" style="width:0%"></div></div><button class="quest-claim locked">Noch offen</button></div>
+                <div class="quest-card"><div class="quest-title">Spiel gewinnen</div><div class="quest-desc">Gewinne ein Liga-Match.</div><span class="quest-bp">20 BP</span><div class="quest-progress-text"><span>0 / 1</span><span>offen</span></div><div class="quest-progress"><div class="quest-progress-fill" style="width:0%"></div></div><button class="quest-claim locked">Noch offen</button></div>
+                <div class="quest-card" data-bp="25"><div class="quest-title">Neuer Gegner</div><div class="quest-desc">Spiele gegen ein neues Team.</div><span class="quest-bp">25 BP</span><div class="quest-progress-text"><span>0 / 1</span><span>offen</span></div><div class="quest-progress"><div class="quest-progress-fill" style="width:0%"></div></div><button class="quest-claim locked">Noch offen</button></div>
+                <div class="quest-card"><div class="quest-title">3 Spiele an einem Tag</div><div class="quest-desc">Absolviere 3 Matches am selben Tag.</div><span class="quest-bp">40 BP</span><div class="quest-progress-text"><span>0 / 3</span><span>offen</span></div><div class="quest-progress"><div class="quest-progress-fill" style="width:0%"></div></div><button class="quest-claim locked">Noch offen</button></div>
+              </div>
+            </div>
+            <div class="bierpass-card">
+              <div style="font-weight:900;color:#050c3a;margin-bottom:.8rem">Belohnungen</div>
+              
+              <div class="reward-list">
+                <div class="reward-row with-thumb">
+                  <div class="reward-points">50 BP</div>
+                  <img class="reward-thumb" src="assets/badges/Badge-Season1.png" alt="Season 1 Badge">
+                  <div>
+                    <div class="reward-name">Season 1 Badge</div>
+                    <div class="reward-type">Achievement Badge</div>
+                  </div>
+                  <div class="reward-status locked">Gesperrt</div>
+                </div>
+
+                <div class="reward-row with-thumb banner-reward">
+                  <div class="reward-points">125 BP</div>
+                  <img class="reward-thumb banner-thumb" src="assets/banners/BannerBiermannSchlafend.jpg" alt="Schlafender Biermann Banner">
+                  <div>
+                    <div class="reward-name">Schlafender Biermann</div>
+                    <div class="reward-type">Profilbanner</div>
+                  </div>
+                  <div class="reward-status locked">Gesperrt</div>
+                </div>
+
+                <div class="reward-row coming-soon">
+                  <div class="reward-points">200 BP</div>
+                  <div>
+                    <div class="reward-name">Neue Belohnung</div>
+                    <div class="reward-type">Badge · bald verfügbar</div>
+                  </div>
+                  <div class="reward-status coming-soon-status">Coming soon</div>
+                </div>
+
+                <div class="reward-row coming-soon">
+                  <div class="reward-points">300 BP</div>
+                  <div>
+                    <div class="reward-name">Neue Belohnung</div>
+                    <div class="reward-type">Profilbanner · bald verfügbar</div>
+                  </div>
+                  <div class="reward-status coming-soon-status">Coming soon</div>
+                </div>
+
+                <div class="reward-row coming-soon">
+                  <div class="reward-points">700 BP</div>
+                  <div>
+                    <div class="reward-name">Neue Belohnung</div>
+                    <div class="reward-type">Badge · bald verfügbar</div>
+                  </div>
+                  <div class="reward-status coming-soon-status">Coming soon</div>
+                </div>
+
+                <div class="reward-row coming-soon">
+                  <div class="reward-points">1500 BP</div>
+                  <div>
+                    <div class="reward-name">Finale Belohnung</div>
+                    <div class="reward-type">Legendär · bald verfügbar</div>
+                  </div>
+                  <div class="reward-status coming-soon-status">Coming soon</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="section-title">Jetzt Bereit <span class="dot"></span> <span style="color:#0c54fc" id="ready-count">0 Teams</span></div>
   <div class="ready-search-wrap">
     <input class="chat-search-input" id="ready-city-search" type="text" placeholder="Nach Stadt suchen..." oninput="renderReadyTeams()" />
@@ -1278,6 +1953,28 @@ document.addEventListener('click', (e) => {
         </div>
       </div>
     </div>
+    
+    <div class="card trophy-cabinet" id="trophy-cabinet">
+      <div class="flex-between">
+        <div>
+          <div style="font-size:1.05rem;font-weight:900;color:var(--white);font-family:'Outfit',sans-serif">Pokalschrank</div>
+          <div style="font-size:.82rem;color:var(--gray);margin-top:3px">Deine präsentierten Achievement-Badges</div>
+        </div>
+        <button class="btn-secondary" id="trophy-toggle-btn" onclick="toggleTrophyCabinet()">Alle anzeigen</button>
+      </div>
+      <div class="trophy-showcase">
+        <div class="badge-tile"><div class="badge-icon badge-img"><img src="assets/badges/Badge-Season1.png" alt="Season 1 Badge"></div><div class="badge-name">Season 1</div><div class="badge-sub">Bierpass</div></div>
+        <div class="badge-tile"><div class="badge-icon">🔥</div><div class="badge-name">Siegesserie</div><div class="badge-sub">Achievement</div></div>
+        <div class="badge-tile"><div class="badge-icon">🍺</div><div class="badge-name">Durstlöscher</div><div class="badge-sub">Bierpass</div></div>
+      </div>
+      <div class="trophy-extra" id="trophy-extra">
+        <div class="badge-tile"><div class="badge-icon">🤝</div><div class="badge-name">Neue Gegner</div><div class="badge-sub">Achievement</div></div>
+        <div class="badge-tile"><div class="badge-icon">📅</div><div class="badge-name">Wochenkrieger</div><div class="badge-sub">Achievement</div></div>
+        <div class="badge-tile"><div class="badge-icon">⚡</div><div class="badge-name">Vielspieler</div><div class="badge-sub">Achievement</div></div>
+      </div>
+      <div class="banner-edit-placeholder"></div>
+    </div>
+
     <div class="profile-subcards">
       <div class="card">
         <div class="section-title"> Fairness & Verstöße</div>
@@ -1524,6 +2221,19 @@ document.addEventListener('click', (e) => {
         <label class="form-label">Profilbeschreibung</label>
         <textarea class="form-input" id="edit-bio" rows="3" style="resize:vertical"></textarea>
       </div>
+
+      <div class="profile-edit-banner-picker">
+        <div class="profile-edit-banner-title">Profilbanner auswählen</div>
+        <div class="profile-edit-banner-grid">
+          <button type="button" class="profile-edit-banner-card banner-sleep active" onclick="selectProfileHeaderBanner('sleep', this)">
+            <span>Biermann</span>
+          </button>
+          <button type="button" class="profile-edit-banner-card banner-default" onclick="selectProfileHeaderBanner('default', this)">
+            <span>Standard</span>
+          </button>
+        </div>
+      </div>
+
       <div class="form-row">
         <label class="form-label">Team-Emoji (Fallback wenn kein Bild)</label>
         <input class="form-input" id="edit-emoji" type="text" maxlength="4" style="font-size:1.4rem"/>
@@ -2554,8 +3264,10 @@ async function saveProfile() {
   const { data, error } = await supabase.from('teams').update({ name: name||myTeam.name, ort, bio, emoji }).eq('id', myTeam.id).select().single();
   if (error) { showToast('Fehler beim Speichern.'); return; }
   myTeam = data;
+  saveSelectedProfileBanner();
   closeModal('profile-edit');
   loadProfile(myTeam);
+  setTimeout(initProfileBannerPicker, 80);
   updateNavAuth();
   showToast(' Profil gespeichert!');
 }
@@ -3524,6 +4236,261 @@ window.renderReadyTeams = renderReadyTeams;
 <!-- DB Setup Info (nur beim ersten Start sichtbar) -->
 <div id="db-setup-banner" style="display:none"></div>
 
+
+<script>
+function toggleBierpass(event){
+  if(event) event.stopPropagation();
+  const preview=document.getElementById('bierpass-preview');
+  const panel=document.getElementById('bierpass-panel');
+  if(!preview||!panel) return;
+  const open=panel.classList.contains('open');
+  panel.classList.toggle('open',!open);
+  preview.style.display=open?'block':'none';
+}
+function closeBierpass(event){
+  if(event) event.stopPropagation();
+  const preview=document.getElementById('bierpass-preview');
+  const panel=document.getElementById('bierpass-panel');
+  if(!preview||!panel) return;
+  panel.classList.remove('open');
+  preview.style.display='block';
+}
+function toggleTrophyCabinet(){
+  const extra=document.getElementById('trophy-extra');
+  const btn=document.getElementById('trophy-toggle-btn');
+  if(!extra||!btn) return;
+  const open=extra.classList.toggle('open');
+  btn.textContent=open?'Weniger anzeigen':'Alle anzeigen';
+}
+</script>
+
+
+<script>
+function updateBeerpassPoints(delta){
+  const pointsBox=document.querySelector('.bierpass-points');
+  const fill=document.querySelector('.beer-track-fill');
+  const label=document.querySelector('.beer-track-label');
+  if(!pointsBox) return;
+  const current=parseInt((pointsBox.textContent||'0').match(/\d+/)?.[0]||'0',10);
+  const next=Math.min(1500,current+delta);
+  pointsBox.innerHTML=next+'<br><span style="font-size:.7rem">Bierpunkte</span>';
+  if(fill){
+    fill.style.height=Math.min(100,(next/1500)*100)+'%';
+  }
+  if(label){
+    const rewards=[50,125,200,300,425,550,700,875,1075,1300,1500];
+    const upcoming=rewards.find(v=>v>next);
+    label.innerHTML=next+' / 1500 BP<br>'+(upcoming?'Nächste: '+upcoming+' BP':'Bierpass komplett');
+  }
+}
+
+function claimQuestReward(btn){
+  const card=btn.closest('.quest-card');
+  if(!card || btn.classList.contains('locked') || btn.dataset.claimed==='1') return;
+  const bp=parseInt(card.dataset.bp||'0',10);
+  updateBeerpassPoints(bp);
+  btn.textContent='Abgeholt';
+  btn.dataset.claimed='1';
+  btn.classList.add('locked');
+  const progress=card.querySelector('.quest-progress-fill');
+  const progressText=card.querySelector('.quest-progress-text');
+  if(progress) progress.style.width='0%';
+  if(progressText) progressText.innerHTML='<span>0 / 1</span><span>neu gestartet</span>';
+}
+
+function claimBeerpassReward(btn){
+  const row=btn.closest('.reward-row');
+  if(!row || btn.classList.contains('claimed')) return;
+  btn.textContent='Abgeholt';
+  btn.classList.add('claimed');
+  row.classList.remove('claimable');
+}
+
+function selectProfileBanner(n,btn){
+  const banner=document.getElementById('profile-banner-preview');
+  if(!banner) return;
+  banner.classList.remove('banner-style-1','banner-style-2','banner-style-3','real-banner');
+  if(n===1){
+    banner.classList.add('real-banner','banner-style-1');
+    banner.textContent='Profilbanner: Season 1';
+  } else {
+    banner.classList.add('banner-style-'+n);
+    banner.textContent=n===2?'Profilbanner: Türkis':'Profilbanner: Navy';
+  }
+  document.querySelectorAll('.banner-option').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  try{localStorage.setItem('selectedProfileBanner',String(n));}catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  try{
+    const saved=localStorage.getItem('selectedProfileBanner');
+    if(saved){
+      const btn=document.querySelector('.banner-option:nth-child('+saved+')');
+      selectProfileBanner(parseInt(saved,10),btn);
+    }
+  }catch(e){}
+});
+</script>
+
+
+<script>
+function selectProfileHeaderBanner(kind, btn){
+  const banner = document.getElementById('active-profile-banner');
+  if(!banner) return;
+  if(kind === 'sleep'){
+    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  } else {
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+  }
+  document.querySelectorAll('.profile-banner-choice').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  try{ localStorage.setItem('selectedProfileHeaderBanner', kind); }catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  try{
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const btn = saved === 'sleep' ? document.querySelector('.profile-banner-choice.banner-sleep') : document.querySelector('.profile-banner-choice.banner-default');
+    selectProfileHeaderBanner(saved, btn);
+  }catch(e){}
+});
+</script>
+
+
+<script>
+function selectProfileHeaderBanner(kind, btn){
+  const banner = document.getElementById('active-profile-banner');
+  if(!banner) return;
+  if(kind === 'sleep'){
+    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  } else {
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+  }
+
+  document.querySelectorAll('.profile-edit-banner-card, .profile-banner-choice').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  try{ localStorage.setItem('selectedProfileHeaderBanner', kind); }catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  try{
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const selector = saved === 'sleep'
+      ? '.profile-edit-banner-card.banner-sleep, .profile-banner-choice.banner-sleep'
+      : '.profile-edit-banner-card.banner-default, .profile-banner-choice.banner-default';
+    const btn = document.querySelector(selector);
+    selectProfileHeaderBanner(saved, btn);
+  }catch(e){}
+});
+</script>
+
+
+<script>
+function selectProfileHeaderBanner(kind, btn){
+  const banner = document.getElementById('active-profile-banner');
+  if(!banner) return;
+
+  if(kind === 'sleep'){
+    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  } else {
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+  }
+
+  document.querySelectorAll('.profile-edit-banner-card').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  try { localStorage.setItem('selectedProfileHeaderBanner', kind); } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+    const btn = saved === 'sleep'
+      ? document.querySelector('.profile-edit-banner-card.banner-sleep')
+      : document.querySelector('.profile-edit-banner-card.banner-default');
+    selectProfileHeaderBanner(saved, btn);
+  } catch(e) {}
+});
+</script>
+
+
+<script>
+let pendingProfileHeaderBanner = null;
+
+function applyProfileHeaderBanner(kind) {
+  const banner = document.getElementById('active-profile-banner');
+  if (!banner) return;
+
+  if (kind === 'default') {
+    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+  } else {
+    banner.style.backgroundImage = "url('assets/banners/BannerBiermannSchlafend.jpg')";
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center';
+  }
+}
+
+function markProfileBannerChoice(kind) {
+  document.querySelectorAll('.profile-edit-banner-card').forEach(card => card.classList.remove('active', 'pending'));
+  const selector = kind === 'default'
+    ? '.profile-edit-banner-card.banner-default'
+    : '.profile-edit-banner-card.banner-sleep';
+  const btn = document.querySelector(selector);
+  if (btn) btn.classList.add('active', 'pending');
+}
+
+function selectProfileHeaderBanner(kind, btn) {
+  pendingProfileHeaderBanner = kind;
+  applyProfileHeaderBanner(kind);
+  document.querySelectorAll('.profile-edit-banner-card').forEach(card => card.classList.remove('active', 'pending'));
+  if (btn) btn.classList.add('active', 'pending');
+}
+
+function saveSelectedProfileBanner() {
+  const selected = pendingProfileHeaderBanner || localStorage.getItem('selectedProfileHeaderBanner') || 'sleep';
+  try { localStorage.setItem('selectedProfileHeaderBanner', selected); } catch(e) {}
+  applyProfileHeaderBanner(selected);
+  markProfileBannerChoice(selected);
+}
+
+function initProfileBannerPicker() {
+  let saved = 'sleep';
+  try { saved = localStorage.getItem('selectedProfileHeaderBanner') || 'sleep'; } catch(e) {}
+  pendingProfileHeaderBanner = saved;
+  applyProfileHeaderBanner(saved);
+  markProfileBannerChoice(saved);
+}
+
+document.addEventListener('DOMContentLoaded', initProfileBannerPicker);
+
+// When the edit modal is opened later, make sure selected card is highlighted.
+document.addEventListener('click', (e) => {
+  const target = e.target;
+  if (!target) return;
+  const text = (target.textContent || '').toLowerCase();
+  const opensProfileEdit = (target.getAttribute && (target.getAttribute('onclick') || '').includes('profile-edit')) || text.includes('bearbeiten');
+  if (opensProfileEdit) setTimeout(initProfileBannerPicker, 80);
+});
+</script>
+
+
+<script>
+function claimQuestReward(btn){
+  if (typeof showToast === 'function') showToast('Bierpass wird bald mit echten Daten aktiviert.');
+}
+function claimBeerpassReward(btn){
+  if (typeof showToast === 'function') showToast('Belohnungen werden bald mit Supabase aktiviert.');
+}
+</script>
+
 </body>
 </html>
 
@@ -3537,6 +4504,26 @@ window.renderReadyTeams = renderReadyTeams;
   padding: 1rem;
   box-shadow: 0 8px 24px rgba(0,0,0,0.06);
   margin-bottom: 1rem;
+}
+
+
+.reward-status:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 26px rgba(12,84,252,.35);
+}
+
+.reward-status.claimed{
+  background:rgba(22,163,74,.12);
+  color:#16a34a;
+  box-shadow:none;
+  cursor:default;
+}
+
+.reward-status.locked{
+  background:rgba(122,144,192,.12);
+  color:#7a90c0;
+  box-shadow:none;
+  cursor:default;
 }
 
 </style>
