@@ -3879,11 +3879,188 @@ async function finishMatchCleanup(match, toastMessage) {
   await loadAllData();
 }
 
+
+// ─── BIERPASS QUEST PROGRESS ────────────────────────────────────────────────
+async function getActiveBeerpassSeason() {
+  const { data, error } = await supabase
+    .from('beerpass_seasons')
+    .select('*')
+    .eq('is_active', true)
+    .order('starts_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Bierpass Saison konnte nicht geladen werden', error);
+    return null;
+  }
+  return data || null;
+}
+
+async function getBeerpassQuest(seasonId, questKey) {
+  const { data, error } = await supabase
+    .from('beerpass_quests')
+    .select('*')
+    .eq('season_id', seasonId)
+    .eq('quest_key', questKey)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Bierpass Quest konnte nicht geladen werden', questKey, error);
+    return null;
+  }
+  return data || null;
+}
+
+async function ensureTeamBeerpassProgress(teamId, seasonId) {
+  const { data, error } = await supabase
+    .from('team_beerpass_progress')
+    .upsert({
+      team_id: teamId,
+      season_id: seasonId,
+      beer_points: 0,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'team_id,season_id', ignoreDuplicates: true })
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Bierpass Fortschritt konnte nicht vorbereitet werden', error);
+  }
+  return data;
+}
+
+async function incrementBeerpassQuest(teamId, questKey, amount = 1, setValue = null) {
+  if (!teamId || !questKey) return;
+
+  const season = await getActiveBeerpassSeason();
+  if (!season?.id) return;
+
+  const quest = await getBeerpassQuest(season.id, questKey);
+  if (!quest?.id) return;
+
+  await ensureTeamBeerpassProgress(teamId, season.id);
+
+  const { data: existing, error: existingError } = await supabase
+    .from('team_quest_progress')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('quest_id', quest.id)
+    .maybeSingle();
+
+  if (existingError) {
+    console.warn('Quest-Fortschritt konnte nicht geladen werden', existingError);
+    return;
+  }
+
+  if (existing?.status === 'completed') return;
+
+  const target = Number(existing?.target_value || quest.target_value || 1);
+  const current = Number(existing?.current_value || 0);
+  const nextValue = setValue !== null
+    ? Math.min(Number(setValue) || 0, target)
+    : Math.min(current + amount, target);
+  const nextStatus = nextValue >= target ? 'completed' : 'active';
+
+  const payload = {
+    team_id: teamId,
+    quest_id: quest.id,
+    season_id: season.id,
+    current_value: nextValue,
+    target_value: target,
+    status: nextStatus,
+    completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error: upsertError } = await supabase
+    .from('team_quest_progress')
+    .upsert(payload, { onConflict: 'team_id,quest_id' });
+
+  if (upsertError) {
+    console.warn('Quest-Fortschritt konnte nicht gespeichert werden', questKey, upsertError);
+    return;
+  }
+
+  if (nextStatus === 'completed' && current < target && typeof showToast === 'function') {
+    showToast(`Bierpass-Quest abgeschlossen: ${quest.title}`);
+  }
+}
+
+async function countTeamGamesToday(teamId) {
+  if (!teamId) return 0;
+  const start = new Date();
+  start.setHours(0,0,0,0);
+  const end = new Date();
+  end.setHours(23,59,59,999);
+
+  const { count, error } = await supabase
+    .from('games')
+    .select('id', { count: 'exact', head: true })
+    .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+    .gte('created_at', start.toISOString())
+    .lte('created_at', end.toISOString())
+    .in('status', ['normal','no_show']);
+
+  if (error) {
+    console.warn('Spiele heute konnten nicht gezählt werden', error);
+    return 0;
+  }
+  return count || 0;
+}
+
+async function haveTeamsPlayedBefore(teamAId, teamBId) {
+  if (!teamAId || !teamBId) return false;
+  const { count, error } = await supabase
+    .from('games')
+    .select('id', { count: 'exact', head: true })
+    .or(`and(team_a_id.eq.${teamAId},team_b_id.eq.${teamBId}),and(team_a_id.eq.${teamBId},team_b_id.eq.${teamAId})`);
+
+  if (error) {
+    console.warn('Neue-Gegner-Prüfung fehlgeschlagen', error);
+    return false;
+  }
+  return (count || 0) > 0;
+}
+
+async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts = {}) {
+  if (!match?.team_a_id || !match?.team_b_id) return;
+
+  // Keine Bierpass-Quests für Konflikte oder Fristablauf.
+  if (status === 'conflict' || status === 'deadline') return;
+
+  const teamA = match.team_a_id;
+  const teamB = match.team_b_id;
+  const bothTeams = [teamA, teamB];
+
+  const isFirstOpponentMatch = opts.isFirstOpponentMatch === true;
+
+  for (const teamId of bothTeams) {
+    await incrementBeerpassQuest(teamId, 'play_match', 1);
+
+    if (isFirstOpponentMatch) {
+      await incrementBeerpassQuest(teamId, 'new_opponent', 1);
+    }
+
+    const gamesToday = await countTeamGamesToday(teamId);
+    await incrementBeerpassQuest(teamId, 'three_matches_day', 0, gamesToday);
+  }
+
+  const winnerTeamId = winnerSide === 'A' ? teamA : winnerSide === 'B' ? teamB : null;
+  if (winnerTeamId) {
+    await incrementBeerpassQuest(winnerTeamId, 'win_match', 1);
+  }
+}
+
 async function evaluateMatch(match) {
   const a = match.team_a_result;
   const b = match.team_b_result;
 
   if (!a && !b) return;
+
+  const hadPlayedBefore = await haveTeamsPlayedBefore(match.team_a_id, match.team_b_id);
+  const isFirstOpponentMatch = !hadPlayedBefore;
 
   // ── Sofortiger Surrender: kein zweites Team nötig ──
   if (a === 'surrender') {
@@ -3894,6 +4071,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
+    if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, 'B', 'no_show', { isFirstOpponentMatch });
     await finishMatchCleanup(match, '️ Aufgegeben. Match beendet.');
     return;
   }
@@ -3905,6 +4083,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
+    if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, 'A', 'no_show', { isFirstOpponentMatch });
     await finishMatchCleanup(match, ' Gegner hat aufgegeben. Match beendet.');
     return;
   }
@@ -3955,6 +4134,7 @@ async function evaluateMatch(match) {
     return;
   }
 
+  if (!data?.already_finished) await updateBeerpassAfterResolvedMatch(match, winnerSide, status, { isFirstOpponentMatch });
   await finishMatchCleanup(match, ' Ergebnis bestätigt! Match beendet.');
 }
 
