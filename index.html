@@ -5009,6 +5009,7 @@ async function loadBierpassData(){
   if(bpError) console.warn('Bierpunkte konnten nicht geladen werden:', bpError);
 
   const beerPoints = Number(bpRow?.beer_points || 0);
+  console.log('[Bierpass] bpRow:', bpRow, '→ beerPoints:', beerPoints);
   renderBierpassPoints(beerPoints);
 
   const { data: quests, error: questsError } = await supabase
@@ -5041,6 +5042,9 @@ async function loadBierpassData(){
       .from('beerpass_rewards').select('*')
       .eq('season_id', season.id).eq('is_active', true)
       .order('required_points', { ascending: true });
+    console.log('[Bierpass] season.id:', season?.id);
+    console.log('[Bierpass] rawRewards:', rawRewards, 'error:', rwErr);
+    console.log('[Bierpass] beerPoints:', beerPoints);
     if (!rwErr && rawRewards && rawRewards.length) {
       const badgeIds = rawRewards.filter(r => r.badge_id).map(r => r.badge_id);
       const bannerIds = rawRewards.filter(r => r.banner_id).map(r => r.banner_id);
@@ -5058,6 +5062,9 @@ async function loadBierpassData(){
         badges: r.badge_id ? (badgeMap[r.badge_id] || null) : null,
         profile_banners: r.banner_id ? (bannerMap[r.banner_id] || null) : null
       }));
+    }
+    if (!rwErr && (!rawRewards || !rawRewards.length)) {
+      console.warn('[Bierpass] rawRewards ist leer! Evtl. RLS-Problem oder falsche season_id.');
     }
   } catch(e) { console.warn('Rewards konnten nicht geladen werden:', e); }
 
