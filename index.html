@@ -4057,18 +4057,15 @@ async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts 
 
 async function processBierpassForMatchRpc(matchId, winnerSide, status, matchObj) {
   if (!matchId) return;
-
-  // Versuche zuerst die serverseitige RPC-Funktion
   try {
     const { data, error } = await supabase.rpc('process_bierpass_for_match', {
       p_match_id: matchId,
       p_winner_side: winnerSide || null,
       p_status: status || 'normal'
     });
-
     if (!error) {
       console.log('Bierpass via RPC aktualisiert:', data);
-      return; // RPC hat funktioniert → fertig
+      return;
     }
     console.warn('Bierpass RPC Fehler (Fallback auf Client-Logik):', error);
   } catch (e) {
@@ -4793,7 +4790,7 @@ function toggleTrophyCabinet(){
 </script>
 
 
-
+<!-- old UI-only claimQuestReward block removed -->
 
 
 <script>
@@ -4972,7 +4969,7 @@ function renderUnlockedBadgesFromSupabase(badges){
 </script>
 
 
-
+<!-- duplicate loadBierpassData block removed -->
 
 
 <script>
@@ -5137,7 +5134,9 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
           <div class="reward-name">${bierpassSafeHtml(r.title || 'Belohnung')}</div>
           <div class="reward-type">${isBanner ? 'Profilbanner' : 'Achievement Badge'}</div>
         </div>
-        <div class="reward-status ${isClaimed ? 'claimed' : canClaim ? '' : 'locked'}">${isClaimed ? 'Abgeholt' : canClaim ? 'Abholbar' : 'Gesperrt'}</div>
+        <div class="reward-status ${isClaimed ? 'claimed' : canClaim ? 'claimable' : 'locked'}"
+          ${canClaim ? `onclick="claimBeerpassReward('${bierpassSafeHtml(String(r.id))}','${bierpassSafeHtml(r.reward_type || '')}')" style="cursor:pointer"` : ''}
+        >${isClaimed ? '✓ Abgeholt' : canClaim ? '🎁 Abholen' : 'Gesperrt'}</div>
       </div>
     `;
   }).join('');
@@ -5159,19 +5158,104 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
 async function claimQuestReward(progressId){
   if(!progressId) return;
 
-  const { data, error } = await supabase.rpc('claim_bierpass_quest', {
-    p_progress_id: progressId
-  });
+  // Saison und Quest-Daten holen um BP zu vergeben und Quest zurückzusetzen
+  const { data: progressRow } = await supabase
+    .from('team_quest_progress')
+    .select('*, beerpass_quests(beer_points, title, is_repeatable)')
+    .eq('id', progressId)
+    .maybeSingle();
 
-  if(error || !data?.ok){
-    console.warn('Quest konnte nicht abgeholt werden:', error || data);
-    showToast('Quest konnte nicht abgeholt werden.');
+  if (!progressRow || progressRow.status !== 'completed') {
+    showToast('Quest noch nicht abgeschlossen.');
     return;
   }
 
-  showToast('+' + (data.beer_points_added || 0) + ' Bierpunkte erhalten!');
+  const bpToAdd = Number(progressRow.beerpass_quests?.beer_points || 0);
+
+  // Bierpunkte gutschreiben
+  const { data: bpRow } = await supabase
+    .from('team_beerpass_progress')
+    .select('beer_points')
+    .eq('team_id', progressRow.team_id)
+    .eq('season_id', progressRow.season_id)
+    .maybeSingle();
+
+  const newBp = Number(bpRow?.beer_points || 0) + bpToAdd;
+  await supabase
+    .from('team_beerpass_progress')
+    .upsert({ team_id: progressRow.team_id, season_id: progressRow.season_id, beer_points: newBp, updated_at: new Date().toISOString() },
+      { onConflict: 'team_id,season_id' });
+
+  // Quest zurücksetzen (wiederholbar) - status auf 'active', Fortschritt auf 0
+  await supabase
+    .from('team_quest_progress')
+    .update({ status: 'active', current_value: 0, completed_at: null, updated_at: new Date().toISOString() })
+    .eq('id', progressId);
+
+  showToast('🍺 +' + bpToAdd + ' Bierpunkte erhalten!');
   await loadBierpassData();
 }
+
+async function claimBeerpassReward(rewardId, rewardType) {
+  if (!rewardId || !myTeam?.id) return;
+
+  // Saison ermitteln
+  const { data: season } = await supabase
+    .from('beerpass_seasons')
+    .select('id')
+    .eq('is_active', true)
+    .order('starts_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!season?.id) { showToast('Keine aktive Saison gefunden.'); return; }
+
+  // Belohnung bereits abgeholt?
+  const { data: alreadyClaimed } = await supabase
+    .from('team_claimed_rewards')
+    .select('id')
+    .eq('team_id', myTeam.id)
+    .eq('reward_id', rewardId)
+    .maybeSingle();
+  if (alreadyClaimed) { showToast('Diese Belohnung wurde bereits abgeholt.'); return; }
+
+  // In team_claimed_rewards eintragen
+  const { error: claimError } = await supabase
+    .from('team_claimed_rewards')
+    .insert({ team_id: myTeam.id, reward_id: rewardId, season_id: season.id, claimed_at: new Date().toISOString() });
+  if (claimError) { console.warn('Claim fehlgeschlagen:', claimError); showToast('Belohnung konnte nicht abgeholt werden.'); return; }
+
+  // Badge oder Banner ins Team eintragen
+  if (rewardType === 'badge') {
+    // Badge-ID aus beerpass_rewards holen
+    const { data: rw } = await supabase
+      .from('beerpass_rewards')
+      .select('badge_id')
+      .eq('id', rewardId)
+      .maybeSingle();
+    if (rw?.badge_id) {
+      await supabase.from('team_badges').upsert(
+        { team_id: myTeam.id, badge_id: rw.badge_id, unlocked_at: new Date().toISOString() },
+        { onConflict: 'team_id,badge_id' }
+      );
+    }
+  } else if (rewardType === 'banner') {
+    const { data: rw } = await supabase
+      .from('beerpass_rewards')
+      .select('banner_id')
+      .eq('id', rewardId)
+      .maybeSingle();
+    if (rw?.banner_id) {
+      await supabase.from('team_banners').upsert(
+        { team_id: myTeam.id, banner_id: rw.banner_id, unlocked_at: new Date().toISOString() },
+        { onConflict: 'team_id,banner_id' }
+      );
+    }
+  }
+
+  showToast('🎉 Belohnung abgeholt!');
+  await loadBierpassData();
+}
+
 
 function toggleBierpass(event){
   if(event) event.stopPropagation();
