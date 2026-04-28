@@ -3315,28 +3315,48 @@ async function loadProfileRewards(team, isMyProfile) {
   let activeBannerId = null;
 
   try {
-    const { data, error } = await supabase
+    // team_badges separat laden (kein Join wegen RLS)
+    const { data: tbRows, error: tbErr } = await supabase
       .from('team_badges')
-      .select('unlocked_at, badges(id,title,image_url,rarity)')
+      .select('badge_id, unlocked_at')
       .eq('team_id', team.id)
       .order('unlocked_at', { ascending: false });
 
-    if (!error && data) {
-      badges = data.map(row => row.badges).filter(Boolean);
+    if (!tbErr && tbRows && tbRows.length) {
+      const ids = tbRows.map(r => r.badge_id).filter(Boolean);
+      if (ids.length) {
+        const { data: badgeData } = await supabase
+          .from('badges').select('id,title,image_url,rarity').in('id', ids);
+        if (badgeData) {
+          const badgeMap = {};
+          badgeData.forEach(b => { badgeMap[b.id] = b; });
+          badges = tbRows.map(r => badgeMap[r.badge_id]).filter(Boolean);
+        }
+      }
     }
   } catch (e) {
     console.warn('team_badges konnte nicht geladen werden', e);
   }
 
   try {
-    const { data, error } = await supabase
+    // team_banners separat laden (kein Join wegen RLS)
+    const { data: tnRows, error: tnErr } = await supabase
       .from('team_banners')
-      .select('unlocked_at, profile_banners(id,title,image_url,banner_key)')
+      .select('banner_id, unlocked_at')
       .eq('team_id', team.id)
       .order('unlocked_at', { ascending: false });
 
-    if (!error && data) {
-      banners = data.map(row => row.profile_banners).filter(Boolean);
+    if (!tnErr && tnRows && tnRows.length) {
+      const ids = tnRows.map(r => r.banner_id).filter(Boolean);
+      if (ids.length) {
+        const { data: bannerData } = await supabase
+          .from('profile_banners').select('id,title,image_url,banner_key').in('id', ids);
+        if (bannerData) {
+          const bannerMap = {};
+          bannerData.forEach(b => { bannerMap[b.id] = b; });
+          banners = tnRows.map(r => bannerMap[r.banner_id]).filter(Boolean);
+        }
+      }
     }
   } catch (e) {
     console.warn('team_banners konnte nicht geladen werden', e);
@@ -5227,6 +5247,8 @@ async function claimBeerpassReward(rewardId, rewardType) {
   }
   showToast('🎉 Belohnung abgeholt!');
   await loadBierpassData();
+  // Profil-Rewards sofort aktualisieren (Pokalschrank + Banner-Picker)
+  if (myTeam) await loadProfileRewards(myTeam, true);
 }
 
 function toggleBierpass(event){
