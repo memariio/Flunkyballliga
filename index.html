@@ -1305,7 +1305,7 @@ document.addEventListener('click', (e) => {
 /* === PROFILE BANNER HEADER + EDIT PICKER === */
 .profile-header {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding-top: 0 !important;
 }
 
@@ -1316,10 +1316,11 @@ document.addEventListener('click', (e) => {
   border-radius: 18px 18px 0 0;
   background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
-  background-position: center top;
+  background-position: center center;
   background-repeat: no-repeat;
   z-index: 0;
   margin-bottom: 0;
+  overflow: hidden;
 }
 
 .profile-header > *:not(.profile-banner-header) {
@@ -1401,13 +1402,13 @@ document.addEventListener('click', (e) => {
 
 @media(max-width:700px){
   .profile-header {
-    padding-top: 132px !important;
+    padding-top: 0 !important;
   }
   .profile-banner-header {
     height: 128px;
   }
   .profile-avatar {
-    margin-top: -110px;
+    margin-top: 0;
   }
   .reward-row.with-thumb.banner-reward {
     grid-template-columns: 55px 64px 1fr;
@@ -1659,8 +1660,8 @@ document.addEventListener('click', (e) => {
 /* === LIVE SUPABASE PROFILE REWARDS === */
 .profile-header {
   position: relative;
-  overflow: hidden;
-  padding-top: 150px !important;
+  overflow: visible;
+  padding-top: 0 !important;
 }
 
 .profile-banner-header {
@@ -1683,7 +1684,7 @@ document.addEventListener('click', (e) => {
 }
 
 .profile-avatar {
-  margin-top: -125px;
+  margin-top: 0;
   background: rgba(255,255,255,0.92) !important;
   border: 3px solid rgba(255,255,255,0.95) !important;
   box-shadow: 0 8px 24px rgba(5,12,58,0.16);
@@ -1771,13 +1772,13 @@ document.addEventListener('click', (e) => {
 
 @media(max-width:700px){
   .profile-header {
-    padding-top: 132px !important;
+    padding-top: 0 !important;
   }
   .profile-banner-header {
     height: 128px;
   }
   .profile-avatar {
-    margin-top: -110px;
+    margin-top: 0;
   }
 }
 
