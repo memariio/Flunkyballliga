@@ -5248,7 +5248,7 @@ async function claimQuestReward(progressId){
     updated_at: new Date().toISOString()
   }, { onConflict: 'team_id,season_id' });
   await supabase.from('team_quest_progress')
-    .update({ status: 'active', current_value: 0, completed_at: null, updated_at: new Date().toISOString() })
+    .update({ status: 'active', current_value: 0, completed_at: null, reset_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', progressId);
   showToast('🍺 +' + bpToAdd + ' Bierpunkte erhalten!');
   await loadBierpassData();
