@@ -3975,7 +3975,9 @@ async function incrementBeerpassQuest(teamId, questKey, amount = 1, setValue = n
     return;
   }
 
-  if (existing?.status === 'completed') return;
+  // Bei setValue (absoluter Zähler wie Tagesspiele/-siege): auch wenn completed, aktualisieren
+  // damit nach Quest-Claim der Fortschritt korrekt weiterläuft
+  if (existing?.status === 'completed' && setValue === null) return;
 
   const target = Number(existing?.target_value || quest.target_value || 1);
   const current = Number(existing?.current_value || 0);
@@ -4012,23 +4014,48 @@ async function incrementBeerpassQuest(teamId, questKey, amount = 1, setValue = n
 async function countTeamGamesToday(teamId) {
   if (!teamId) return 0;
   const start = new Date();
-  start.setHours(0,0,0,0);
+  start.setHours(0, 0, 0, 0);
   const end = new Date();
-  end.setHours(23,59,59,999);
+  end.setHours(23, 59, 59, 999);
 
+  // Beendete Matches von heute zählen (Tabelle: matches, nicht games)
   const { count, error } = await supabase
-    .from('games')
+    .from('matches')
     .select('id', { count: 'exact', head: true })
     .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
-    .gte('created_at', start.toISOString())
-    .lte('created_at', end.toISOString())
-    .in('status', ['normal','no_show']);
+    .gte('updated_at', start.toISOString())
+    .lte('updated_at', end.toISOString())
+    .in('status', ['normal', 'no_show']);
 
   if (error) {
     console.warn('Spiele heute konnten nicht gezählt werden', error);
     return 0;
   }
   return count || 0;
+}
+
+async function countTeamWinsToday(teamId) {
+  if (!teamId) return 0;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  // Siege von heute zählen: Matches wo team als winner eingetragen
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, winner_id')
+    .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+    .gte('updated_at', start.toISOString())
+    .lte('updated_at', end.toISOString())
+    .in('status', ['normal', 'no_show']);
+
+  if (error) {
+    console.warn('Siege heute konnten nicht gezählt werden', error);
+    return 0;
+  }
+  // Zähle nur Matches wo dieses Team gewonnen hat
+  return (data || []).filter(m => m.winner_id === teamId).length;
 }
 
 async function haveTeamsPlayedBefore(teamAId, teamBId) {
@@ -4064,6 +4091,7 @@ async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts 
       await incrementBeerpassQuest(teamId, 'new_opponent', 1);
     }
 
+    // Tagesspiele zählen und als absoluten Wert setzen (reset-sicher)
     const gamesToday = await countTeamGamesToday(teamId);
     await incrementBeerpassQuest(teamId, 'three_matches_day', 0, gamesToday);
   }
@@ -4071,6 +4099,10 @@ async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts 
   const winnerTeamId = winnerSide === 'A' ? teamA : winnerSide === 'B' ? teamB : null;
   if (winnerTeamId) {
     await incrementBeerpassQuest(winnerTeamId, 'win_match', 1);
+
+    // Tagessiege zählen und als absoluten Wert setzen (reset-sicher)
+    const winsToday = await countTeamWinsToday(winnerTeamId);
+    await incrementBeerpassQuest(winnerTeamId, 'three_wins_day', 0, winsToday);
   }
 }
 
