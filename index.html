@@ -4055,23 +4055,42 @@ async function updateBeerpassAfterResolvedMatch(match, winnerSide, status, opts 
 }
 
 
-async function processBierpassForMatchRpc(matchId, winnerSide, status) {
+async function processBierpassForMatchRpc(matchId, winnerSide, status, matchObj) {
   if (!matchId) return;
+
+  // Versuche zuerst die serverseitige RPC-Funktion
   try {
     const { data, error } = await supabase.rpc('process_bierpass_for_match', {
       p_match_id: matchId,
       p_winner_side: winnerSide || null,
       p_status: status || 'normal'
     });
-    if (error) {
-      console.warn('Bierpass RPC Fehler:', error);
-      if (typeof showToast === 'function') showToast('Bierpass konnte nicht aktualisiert werden.');
-      return;
+
+    if (!error) {
+      console.log('Bierpass via RPC aktualisiert:', data);
+      return; // RPC hat funktioniert → fertig
     }
-    console.log('Bierpass aktualisiert:', data);
+    console.warn('Bierpass RPC Fehler (Fallback auf Client-Logik):', error);
   } catch (e) {
-    console.warn('Bierpass RPC Exception:', e);
+    console.warn('Bierpass RPC Exception (Fallback auf Client-Logik):', e);
   }
+
+  // Fallback: clientseitige Quest-Aktualisierung
+  let match = matchObj || null;
+  if (!match) {
+    const { data: fetchedMatch } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('id', matchId)
+      .maybeSingle();
+    match = fetchedMatch;
+  }
+  if (!match?.team_a_id || !match?.team_b_id) return;
+
+  const hadPlayedBefore = await haveTeamsPlayedBefore(match.team_a_id, match.team_b_id);
+  await updateBeerpassAfterResolvedMatch(match, winnerSide, status || 'normal', {
+    isFirstOpponentMatch: !hadPlayedBefore
+  });
 }
 
 async function evaluateMatch(match) {
@@ -4092,7 +4111,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
-    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'B', 'no_show');
+    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'B', 'no_show', match);
     await finishMatchCleanup(match, '️ Aufgegeben. Match beendet.');
     return;
   }
@@ -4104,7 +4123,7 @@ async function evaluateMatch(match) {
       p_status: 'no_show'
     });
     if (error && !data?.already_finished) { showToast('Fehler: ' + error.message); return; }
-    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'A', 'no_show');
+    if (!data?.already_finished) await processBierpassForMatchRpc(match.id, 'A', 'no_show', match);
     await finishMatchCleanup(match, ' Gegner hat aufgegeben. Match beendet.');
     return;
   }
@@ -4155,7 +4174,7 @@ async function evaluateMatch(match) {
     return;
   }
 
-  if (!data?.already_finished) await processBierpassForMatchRpc(match.id, winnerSide, status);
+  if (!data?.already_finished) await processBierpassForMatchRpc(match.id, winnerSide, status, match);
   await finishMatchCleanup(match, ' Ergebnis bestätigt! Match beendet.');
 }
 
@@ -4774,73 +4793,7 @@ function toggleTrophyCabinet(){
 </script>
 
 
-<script>
-function updateBeerpassPoints(delta){
-  const pointsBox=document.querySelector('.bierpass-points');
-  const fill=document.querySelector('.beer-track-fill');
-  const label=document.querySelector('.beer-track-label');
-  if(!pointsBox) return;
-  const current=parseInt((pointsBox.textContent||'0').match(/\d+/)?.[0]||'0',10);
-  const next=Math.min(1500,current+delta);
-  pointsBox.innerHTML=next+'<br><span style="font-size:.7rem">Bierpunkte</span>';
-  if(fill){
-    fill.style.height=Math.min(100,(next/1500)*100)+'%';
-  }
-  if(label){
-    const rewards=[50,125,200,300,425,550,700,875,1075,1300,1500];
-    const upcoming=rewards.find(v=>v>next);
-    label.innerHTML=next+' / 1500 BP<br>'+(upcoming?'Nächste: '+upcoming+' BP':'Bierpass komplett');
-  }
-}
 
-function claimQuestReward(btn){
-  const card=btn.closest('.quest-card');
-  if(!card || btn.classList.contains('locked') || btn.dataset.claimed==='1') return;
-  const bp=parseInt(card.dataset.bp||'0',10);
-  updateBeerpassPoints(bp);
-  btn.textContent='Abgeholt';
-  btn.dataset.claimed='1';
-  btn.classList.add('locked');
-  const progress=card.querySelector('.quest-progress-fill');
-  const progressText=card.querySelector('.quest-progress-text');
-  if(progress) progress.style.width='0%';
-  if(progressText) progressText.innerHTML='<span>0 / 1</span><span>neu gestartet</span>';
-}
-
-function claimBeerpassReward(btn){
-  const row=btn.closest('.reward-row');
-  if(!row || btn.classList.contains('claimed')) return;
-  btn.textContent='Abgeholt';
-  btn.classList.add('claimed');
-  row.classList.remove('claimable');
-}
-
-function selectProfileBanner(n,btn){
-  const banner=document.getElementById('profile-banner-preview');
-  if(!banner) return;
-  banner.classList.remove('banner-style-1','banner-style-2','banner-style-3','real-banner');
-  if(n===1){
-    banner.classList.add('real-banner','banner-style-1');
-    banner.textContent='Profilbanner: Season 1';
-  } else {
-    banner.classList.add('banner-style-'+n);
-    banner.textContent=n===2?'Profilbanner: Türkis':'Profilbanner: Navy';
-  }
-  document.querySelectorAll('.banner-option').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  try{localStorage.setItem('selectedProfileBanner',String(n));}catch(e){}
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  try{
-    const saved=localStorage.getItem('selectedProfileBanner');
-    if(saved){
-      const btn=document.querySelector('.banner-option:nth-child('+saved+')');
-      selectProfileBanner(parseInt(saved,10),btn);
-    }
-  }catch(e){}
-});
-</script>
 
 
 <script>
@@ -4991,7 +4944,7 @@ document.addEventListener('click', (e) => {
 </script>
 
 
-<!-- claimQuestReward und claimBeerpassReward werden weiter unten durch die echten Supabase-Implementierungen definiert -->
+<!-- claimQuestReward/claimBeerpassReward: echte Implementierungen weiter unten -->
 
 
 <script>
@@ -5019,8 +4972,7 @@ function renderUnlockedBadgesFromSupabase(badges){
 </script>
 
 
-<!-- loadBierpassData, renderBierpassQuests, renderBierpassRewards, claimQuestReward und toggleBierpass
-     werden im FINAL BIERPASS DISPLAY FIX Block weiter unten definiert -->
+
 
 
 <script>
