@@ -1305,7 +1305,7 @@ document.addEventListener('click', (e) => {
 /* === PROFILE BANNER HEADER + EDIT PICKER === */
 .profile-header {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   padding-top: 0 !important;
 }
 
@@ -1316,11 +1316,10 @@ document.addEventListener('click', (e) => {
   border-radius: 18px 18px 0 0;
   background-image: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
-  background-position: center center;
+  background-position: center top;
   background-repeat: no-repeat;
   z-index: 0;
   margin-bottom: 0;
-  overflow: hidden;
 }
 
 .profile-header > *:not(.profile-banner-header) {
@@ -1402,13 +1401,13 @@ document.addEventListener('click', (e) => {
 
 @media(max-width:700px){
   .profile-header {
-    padding-top: 0 !important;
+    padding-top: 0;
   }
   .profile-banner-header {
     height: 128px;
   }
   .profile-avatar {
-    margin-top: 0;
+    margin-top: 1rem;
   }
   .reward-row.with-thumb.banner-reward {
     grid-template-columns: 55px 64px 1fr;
@@ -1660,31 +1659,26 @@ document.addEventListener('click', (e) => {
 /* === LIVE SUPABASE PROFILE REWARDS === */
 .profile-header {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   padding-top: 0 !important;
+  border-radius: 18px;
 }
 
+/* Banner: normaler Block oben, kein absolute */
 .profile-banner-header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  display: block;
+  width: 100%;
   height: 145px;
   border-radius: 18px 18px 0 0;
   background: linear-gradient(135deg,#0c54fc,#5a9af4);
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
-  z-index: 0;
 }
 
-.profile-header > *:not(.profile-banner-header) {
-  position: relative;
-  z-index: 1;
-}
-
+/* Avatar + Text kommen nach dem Banner, normal im Flow */
 .profile-avatar {
-  margin-top: 0;
+  margin-top: 1rem;
   background: rgba(255,255,255,0.92) !important;
   border: 3px solid rgba(255,255,255,0.95) !important;
   box-shadow: 0 8px 24px rgba(5,12,58,0.16);
@@ -1772,13 +1766,13 @@ document.addEventListener('click', (e) => {
 
 @media(max-width:700px){
   .profile-header {
-    padding-top: 0 !important;
+    padding-top: 0;
   }
   .profile-banner-header {
     height: 128px;
   }
   .profile-avatar {
-    margin-top: 0;
+    margin-top: 1rem;
   }
 }
 
@@ -3228,14 +3222,10 @@ function setProfileBannerVisual(imageUrl) {
   const banner = document.getElementById('active-profile-banner');
   if (!banner) return;
   if (imageUrl) {
-    // Relativer Pfad → git assets; absoluter URL bleibt wie er ist
-    const src = imageUrl.startsWith('http') ? imageUrl : imageUrl;
-    banner.style.backgroundImage = `url('${src}')`;
-    banner.style.backgroundSize = 'cover';
-    banner.style.backgroundPosition = 'center top';
-    banner.style.backgroundRepeat = 'no-repeat';
+    // style.background überschreibt CSS background shorthand korrekt
+    banner.style.background = `url('${imageUrl}') center center / cover no-repeat`;
   } else {
-    banner.style.backgroundImage = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
+    banner.style.background = 'linear-gradient(135deg,#0c54fc,#5a9af4)';
   }
 }
 
