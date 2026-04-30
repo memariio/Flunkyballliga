@@ -1664,12 +1664,9 @@ document.addEventListener('click', (e) => {
   border-radius: 18px;
 }
 
-/* Banner: standardmäßig versteckt, nur sichtbar wenn .has-banner */
+/* Banner ist standardmäßig versteckt */
 .profile-banner-header {
   display: none;
-}
-.profile-header.has-banner .profile-banner-header {
-  display: block;
   width: 100%;
   height: 145px;
   border-radius: 18px 18px 0 0;
@@ -1678,7 +1675,18 @@ document.addEventListener('click', (e) => {
   background-repeat: no-repeat;
 }
 
-/* MIT Banner: Avatar absolut oben links AUF dem Banner (mit !important wegen inline-style) */
+/* Wenn .has-banner gesetzt: Banner sichtbar + Avatar AUF dem Banner */
+.profile-header.has-banner {
+  padding-top: 165px !important;
+}
+.profile-header.has-banner .profile-banner-header {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+}
 .profile-header.has-banner .profile-avatar {
   position: absolute !important;
   top: 1rem !important;
@@ -1689,24 +1697,20 @@ document.addEventListener('click', (e) => {
   border: 3px solid rgba(255,255,255,0.95) !important;
   box-shadow: 0 8px 24px rgba(5,12,58,0.16);
 }
-
-/* MIT Banner: Profil-Inhalt (Name, Stats etc.) bekommt Abstand zum Banner */
-.profile-header.has-banner .profile-details,
-.profile-header.has-banner .profile-stats {
-  margin-top: 0;
+.profile-header.has-banner > *:not(.profile-banner-header):not(.profile-avatar):not(#profile-edit-btn) {
+  position: relative;
+  z-index: 1;
+}
+.profile-header.has-banner #profile-edit-btn {
+  z-index: 3 !important;
 }
 
-/* OHNE Banner: Avatar normal im Flow */
+/* Ohne Banner: Avatar normal */
 .profile-header:not(.has-banner) .profile-avatar {
   margin-top: 0;
   background: rgba(255,255,255,0.92) !important;
   border: 3px solid rgba(255,255,255,0.95) !important;
   box-shadow: 0 8px 24px rgba(5,12,58,0.16);
-}
-
-/* Bearbeiten-Button: immer über allem */
-.profile-header #profile-edit-btn {
-  z-index: 3 !important;
 }
 
 .profile-edit-banner-picker {
@@ -3251,7 +3255,6 @@ function setProfileBannerVisual(imageUrl) {
     banner.style.background = `url('${imageUrl}') center center / cover no-repeat`;
     if (header) header.classList.add('has-banner');
   } else {
-    // Kein Banner: gar nichts anzeigen
     banner.style.background = '';
     if (header) header.classList.remove('has-banner');
   }
