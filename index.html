@@ -1252,9 +1252,9 @@ document.addEventListener('click', (e) => {
 }
 .badge-tile:hover { transform: translateY(-2px); transition: transform .15s ease; }
 @media(max-width:700px){
-  .bierpass-panel { height: auto; min-height: 480px; max-height: 85vh; }
-  .bierpass-scroll { padding: .85rem; overflow-x: hidden !important; overflow-y: auto !important; max-width: 100%; box-sizing: border-box; }
-  .bierpass-scroll * { max-width: 100%; box-sizing: border-box; }
+  .bierpass-panel { height: 85vh !important; max-height: 85vh; }
+  .bierpass-scroll { height: 100% !important; padding: .85rem; overflow-x: hidden !important; overflow-y: auto !important; max-width: 100%; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+  .bierpass-scroll > *, .bierpass-scroll > * > * { max-width: 100%; box-sizing: border-box; }
   .bierpass-head { flex-direction: column; padding-right: 2.4rem; }
 
   .bierpass-layout { grid-template-columns: 56px minmax(0, 1fr); gap: .65rem; }
@@ -1263,13 +1263,8 @@ document.addEventListener('click', (e) => {
   .beer-track-marker { width: 24px; }
   .quest-list { grid-template-columns: 1fr; }
 
-  /* Reward-Row: Status-Button immer in eigener Zeile, Banner-Thumb feste Breite */
-  .reward-row { grid-template-columns: 50px minmax(0, 1fr); grid-template-rows: auto auto; gap: .5rem .65rem; padding: .7rem; }
-  .reward-row.with-thumb { grid-template-columns: 48px 56px minmax(0, 1fr); }
-  .reward-row.with-thumb.banner-reward { grid-template-columns: 48px 70px minmax(0, 1fr); }
-  .reward-thumb { width: 56px !important; height: 56px !important; flex-shrink: 0; }
-  .reward-thumb.banner-thumb { width: 70px !important; height: 42px !important; flex-shrink: 0; }
-  .reward-row .reward-status { grid-column: 1 / -1 !important; width: 100%; text-align: center; margin-top: .25rem; }
+  /* Reward-Row Mobile: in eigenen Zeile + Status-Button drunter */
+  .reward-row { grid-template-rows: auto auto; gap: .5rem .65rem; padding: .7rem; }
   .reward-status{
   border:none;
   border-radius:10px;
@@ -1766,13 +1761,21 @@ document.addEventListener('click', (e) => {
 }
 
 @media(max-width:700px){
-  .reward-row.with-thumb,
-  .reward-row.with-thumb.banner-reward {
-    grid-template-columns:55px 48px 1fr;
+  /* Reward-Row Mobile: Badge und Banner haben unterschiedlich breite Thumb-Spalten */
+  .reward-row.with-thumb {
+    grid-template-columns: 50px 48px minmax(0, 1fr) !important;
   }
+  .reward-row.with-thumb.banner-reward {
+    grid-template-columns: 50px 76px minmax(0, 1fr) !important;
+  }
+  .reward-thumb { width: 48px !important; height: 48px !important; }
+  .reward-thumb.banner-thumb { width: 76px !important; height: 44px !important; object-fit: cover !important; }
   .reward-row.with-thumb .reward-status,
   .reward-row.with-thumb.banner-reward .reward-status {
-    grid-column:1/-1;
+    grid-column: 1 / -1 !important;
+    width: 100%;
+    text-align: center;
+    margin-top: .3rem;
   }
 }
 
