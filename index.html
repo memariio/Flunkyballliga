@@ -5290,6 +5290,189 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+
+<!-- === PATCH: Profilbanner nur anzeigen, wenn wirklich ausgewählt + Avatar über Banner === -->
+<style id="profile-banner-avatar-final-patch">
+  .profile-header {
+    position: relative !important;
+    overflow: hidden !important;
+    padding: 0 1rem 1rem !important;
+    background: #fff !important;
+    border-radius: 18px !important;
+  }
+
+  .profile-banner-header {
+    display: none !important;
+    width: calc(100% + 2rem) !important;
+    height: 145px !important;
+    margin: 0 -1rem 0 -1rem !important;
+    border-radius: 18px 18px 0 0 !important;
+    background-image: none !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    position: relative !important;
+    z-index: 0 !important;
+  }
+
+  .profile-header.has-profile-banner .profile-banner-header {
+    display: block !important;
+  }
+
+  #prof-avatar-wrap.profile-avatar {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 3 !important;
+    margin: 1rem 0 0.75rem 0 !important;
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,0.96) !important;
+    border: 3px solid rgba(255,255,255,0.96) !important;
+    box-shadow: 0 10px 28px rgba(5,12,58,0.16) !important;
+  }
+
+  .profile-header.has-profile-banner #prof-avatar-wrap.profile-avatar {
+    position: absolute !important;
+    top: 22px !important;
+    left: 22px !important;
+    margin: 0 !important;
+    box-shadow: 0 10px 28px rgba(5,12,58,0.22) !important;
+  }
+
+  #prof-avatar-img { border-radius: 11px !important; }
+
+  .profile-details {
+    position: relative !important;
+    z-index: 1 !important;
+    padding-top: 0 !important;
+  }
+
+  .profile-header.has-profile-banner .profile-details {
+    padding-top: 1rem !important;
+  }
+
+  .profile-name { margin-top: 0 !important; }
+
+  #profile-edit-btn {
+    top: 1rem !important;
+    right: 1rem !important;
+    z-index: 4 !important;
+    background: rgba(255,255,255,0.82) !important;
+    color: #0c54fc !important;
+    border: 1px solid rgba(12,84,252,0.18) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+
+  .profile-edit-banner-card.banner-sleep,
+  .profile-banner-choice.banner-sleep,
+  .profile-banner-choice-card.banner-sleep {
+    background-image: url("assets/banners/BannerBiermannSchlafend.jpg") !important;
+    background-size: cover !important;
+    background-position: center center !important;
+  }
+
+  @media (max-width: 700px) {
+    .profile-banner-header { height: 128px !important; }
+    .profile-header.has-profile-banner #prof-avatar-wrap.profile-avatar {
+      top: 18px !important;
+      left: 18px !important;
+      width: 84px !important;
+      height: 84px !important;
+    }
+    #prof-avatar-wrap.profile-avatar {
+      width: 84px !important;
+      height: 84px !important;
+    }
+  }
+</style>
+<script id="profile-banner-avatar-final-patch-js">
+(() => {
+  const SLEEPING_BIERMANN_BANNER = 'assets/banners/BannerBiermannSchlafend.jpg';
+
+  function getHeader() {
+    const banner = document.getElementById('active-profile-banner');
+    return banner ? banner.closest('.profile-header') : null;
+  }
+
+  function applyBannerImage(imageUrl) {
+    const banner = document.getElementById('active-profile-banner');
+    const header = getHeader();
+    if (!banner) return;
+
+    const hasImage = typeof imageUrl === 'string' && imageUrl.trim() !== '';
+    if (!hasImage) {
+      banner.style.background = 'none';
+      banner.style.backgroundImage = 'none';
+      banner.style.display = 'none';
+      banner.dataset.hasProfileBanner = '0';
+      if (header) header.classList.remove('has-profile-banner');
+      return;
+    }
+
+    const url = imageUrl.trim();
+    banner.style.display = 'block';
+    banner.style.backgroundImage = `url("${url}")`;
+    banner.style.backgroundSize = 'cover';
+    banner.style.backgroundPosition = 'center center';
+    banner.style.backgroundRepeat = 'no-repeat';
+    banner.dataset.hasProfileBanner = '1';
+    if (header) header.classList.add('has-profile-banner');
+  }
+
+  window.setProfileBannerVisual = function(imageUrl) {
+    applyBannerImage(imageUrl || null);
+  };
+
+  window.applyProfileHeaderBanner = function(kind) {
+    applyBannerImage(kind === 'sleep' ? SLEEPING_BIERMANN_BANNER : null);
+  };
+
+  window.selectProfileHeaderBanner = function(kind, btn) {
+    window.pendingProfileHeaderBanner = kind || null;
+    window.applyProfileHeaderBanner(kind || null);
+    document.querySelectorAll('.profile-edit-banner-card, .profile-banner-choice, .profile-banner-choice-card')
+      .forEach(b => b.classList.remove('active', 'pending'));
+    if (btn) btn.classList.add('active', 'pending');
+    try {
+      if (kind) localStorage.setItem('selectedProfileHeaderBanner', kind);
+      else localStorage.removeItem('selectedProfileHeaderBanner');
+    } catch(e) {}
+  };
+
+  window.saveSelectedProfileBanner = function() {
+    const selected = window.pendingProfileHeaderBanner || localStorage.getItem('selectedProfileHeaderBanner') || null;
+    if (selected) localStorage.setItem('selectedProfileHeaderBanner', selected);
+    else localStorage.removeItem('selectedProfileHeaderBanner');
+    window.applyProfileHeaderBanner(selected);
+    if (typeof markProfileBannerChoice === 'function') markProfileBannerChoice(selected || 'none');
+  };
+
+  window.initProfileBannerPicker = function() {
+    let saved = null;
+    try { saved = localStorage.getItem('selectedProfileHeaderBanner') || null; } catch(e) {}
+    window.pendingProfileHeaderBanner = saved;
+    window.applyProfileHeaderBanner(saved);
+    if (typeof markProfileBannerChoice === 'function') markProfileBannerChoice(saved || 'none');
+  };
+
+  function clearUnselectedFallback() {
+    const banner = document.getElementById('active-profile-banner');
+    if (!banner) return;
+    if (banner.dataset.hasProfileBanner !== '1') applyBannerImage(null);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', clearUnselectedFallback);
+  } else {
+    clearUnselectedFallback();
+  }
+  window.addEventListener('load', clearUnselectedFallback);
+})();
+</script>
+
 </body>
 </html>
 
