@@ -1660,11 +1660,11 @@ document.addEventListener('click', (e) => {
 .profile-header {
   position: relative;
   overflow: hidden;
-  padding-top: 0 !important;
   border-radius: 18px;
+  padding: 1rem !important;
 }
 
-/* Banner ist standardmäßig versteckt */
+/* Banner standardmäßig versteckt */
 .profile-banner-header {
   display: none;
   width: 100%;
@@ -1675,9 +1675,9 @@ document.addEventListener('click', (e) => {
   background-repeat: no-repeat;
 }
 
-/* Wenn .has-banner gesetzt: Banner sichtbar + Avatar AUF dem Banner */
+/* MIT Banner: Banner liegt absolut oben, Avatar drauf */
 .profile-header.has-banner {
-  padding-top: 165px !important;
+  padding: 165px 1rem 1rem 1rem !important;
 }
 .profile-header.has-banner .profile-banner-header {
   display: block;
@@ -3250,13 +3250,19 @@ let currentUnlockedBanners = [];
 function setProfileBannerVisual(imageUrl) {
   const banner = document.getElementById('active-profile-banner');
   const header = banner?.closest('.profile-header');
-  if (!banner) return;
+  console.log('[Banner] called with imageUrl:', imageUrl);
+  if (!banner) { console.warn('[Banner] element NOT FOUND'); return; }
   if (imageUrl) {
     banner.style.background = `url('${imageUrl}') center center / cover no-repeat`;
     if (header) header.classList.add('has-banner');
+    const test = new Image();
+    test.onload = () => console.log('[Banner] ✓ Bild geladen:', imageUrl);
+    test.onerror = () => console.error('[Banner] ✗ Bild NICHT GEFUNDEN unter:', imageUrl);
+    test.src = imageUrl;
   } else {
     banner.style.background = '';
     if (header) header.classList.remove('has-banner');
+    console.log('[Banner] kein Banner aktiv');
   }
 }
 
