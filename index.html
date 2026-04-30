@@ -1118,92 +1118,128 @@ document.addEventListener('click', (e) => {
 .profile-banner-placeholder{height:92px;border-radius:16px;background:linear-gradient(90deg,rgba(5,12,58,.9),rgba(12,84,252,.75));margin-bottom:1rem;color:#fff;font-family:'Outfit',sans-serif;font-weight:900;display:flex;align-items:center;padding:1rem;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(12,84,252,.22)}
 .profile-banner-placeholder::after{content:'';position:absolute;right:-30px;top:-35px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.18)}
 .banner-edit-placeholder{margin-top:.85rem;padding:.85rem;border-radius:14px;background:rgba(12,84,252,.06);border:1px dashed rgba(12,84,252,.28);color:#5a72a8;font-size:.8rem;line-height:1.45}
-/* ── Bierpass Mobile-Optimierung: kein horizontales Scrollen, alles passt aufs Handy ── */
-@media(max-width:700px){
-  .bierpass-panel { height: auto; min-height: 480px; max-height: 85vh; }
-  .bierpass-scroll { padding: .8rem !important; overflow-x: hidden; }
 
-  /* Header: Bierpunkte-Banner geht über volle Breite UNTER dem Titel */
-  .bierpass-head {
-    flex-direction: column !important;
-    padding-right: 2.4rem !important;
-    gap: .6rem;
-  }
-  .bierpass-points {
-    width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: .6rem;
-    padding: .7rem 1rem !important;
-  }
-  .bierpass-points br { display: none; }
-  .bierpass-points span { font-size: .7rem !important; }
-
-  .bierpass-title { font-size: 1.4rem !important; }
-  .bierpass-sub { font-size: .8rem !important; }
-
-  /* Layout: Track und Content nebeneinander, aber schmaler */
-  .bierpass-layout {
-    grid-template-columns: 56px 1fr !important;
-    gap: .6rem !important;
-  }
-  .beer-track-card { padding: .7rem .35rem !important; }
-  .beer-track { width: 14px !important; height: 360px !important; }
-  .beer-track-marker { width: 24px !important; }
-  .beer-track-label { font-size: .62rem !important; }
-
-  /* Quests: 1 Spalte, kompakter */
-  .quest-list { grid-template-columns: 1fr !important; gap: .6rem !important; }
-  .quest-card { padding: .7rem !important; }
-  .quest-title { font-size: .9rem; }
-  .quest-desc { font-size: .72rem; }
-
-  /* Belohnungen: 3-Spalten Grid mit Bild + Text + Status */
-  .reward-row {
-    grid-template-columns: 50px 1fr !important;
-    grid-template-rows: auto auto;
-    gap: .5rem .65rem !important;
-    padding: .7rem !important;
-  }
-  .reward-row.with-thumb {
-    grid-template-columns: 50px 50px 1fr !important;
-  }
-  .reward-row.with-thumb.banner-reward {
-    grid-template-columns: 50px 64px 1fr !important;
-  }
-  .reward-thumb {
-    width: 50px !important;
-    height: 50px !important;
-    object-fit: cover;
-    border-radius: 10px;
-    flex-shrink: 0;
-  }
-  .reward-thumb.banner-thumb {
-    width: 64px !important;
-    height: 38px !important;
-    border-radius: 8px;
-  }
-  .reward-points { font-size: .85rem; }
-  .reward-name { font-size: .85rem; line-height: 1.2; }
-  .reward-type { font-size: .68rem; }
-
-  /* Status / Abholen / Coming-soon Button: über volle Breite UNTER dem Inhalt */
-  .reward-row .reward-status,
-  .reward-row.with-thumb .reward-status,
-  .reward-row.with-thumb.banner-reward .reward-status {
-    grid-column: 1 / -1 !important;
-    width: 100% !important;
-    text-align: center !important;
-    justify-self: stretch !important;
-    margin-top: .2rem !important;
-    padding: 8px 12px !important;
-    box-sizing: border-box;
-  }
+/* Bierpunkte-Banner volle Breite, bündig mit Layout drunter */
+.bierpass-points-banner {
+  margin: 0 0 1rem 0;
+  width: 100%;
+}
+.bierpass-points-banner .bierpass-points {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  padding: .8rem 1rem;
+}
+.bierpass-points-banner .bierpass-points br { display: none; }
+.bierpass-points-banner .bierpass-points span {
+  font-size: .85rem !important;
+  font-weight: 700;
 }
 
+/* ═══════ Badge / Banner Vorschau-Modal ═══════ */
+.reward-preview-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5,12,58,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.reward-preview-modal.open { display: flex; }
+.reward-preview-card {
+  background: #fff;
+  border-radius: 22px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(5,12,58,0.45);
+  position: relative;
+}
+.reward-preview-close {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  border: 0;
+  background: transparent;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #5a72a8;
+  cursor: pointer;
+  line-height: 1;
+}
+.reward-preview-close:hover { color: #050c3a; }
+.reward-preview-img-wrap {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto 1rem;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0c54fc, #5a9af4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  min-height: 180px;
+}
+.reward-preview-img-wrap.banner {
+  padding: 0;
+  min-height: 140px;
+  background: transparent;
+}
+.reward-preview-img {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+.reward-preview-img-wrap.banner .reward-preview-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 18px;
+}
+.reward-preview-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: #050c3a;
+  margin-bottom: .35rem;
+}
+.reward-preview-type {
+  font-size: .8rem;
+  color: #5a72a8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  margin-bottom: .85rem;
+}
+.reward-preview-desc {
+  font-size: .9rem;
+  color: #5a72a8;
+  line-height: 1.45;
+}
+
+/* Badge mit blauem Hintergrund (für PNGs ohne transparentem Hintergrund) */
+.badge-tile .badge-img,
+.reward-thumb:not(.banner-thumb) {
+  background: linear-gradient(135deg, #0c54fc, #5a9af4);
+}
+.badge-tile .badge-img img,
+.reward-thumb:not(.banner-thumb) {
+  mix-blend-mode: multiply;
+}
+/* Klickbar */
+.badge-tile, .reward-row {
+  cursor: pointer;
+}
+.badge-tile:hover { transform: translateY(-2px); transition: transform .15s ease; }
 @media(max-width:700px){
   .bierpass-panel{height:520px}
   .bierpass-scroll{padding:.9rem}
@@ -2018,8 +2054,8 @@ document.addEventListener('click', (e) => {
             <div class="bierpass-title">Dein Bierpass</div>
             <div class="bierpass-sub">Sammle Bierpunkte, erledige wiederholbare Quests und schalte Belohnungen frei.</div>
           </div>
-          <div class="bierpass-points">0<br><span style="font-size:.7rem">Bierpunkte</span></div>
         </div>
+        <div class="bierpass-points-banner"><div class="bierpass-points">0<br><span style="font-size:.7rem">Bierpunkte</span></div></div>
         <div class="bierpass-layout">
           <div class="beer-track-card">
             <div class="beer-track">
@@ -3375,10 +3411,12 @@ function setProfileBannerVisual(imageUrl) {
 
 function renderBadgeTile(badge, sub = 'Freigeschaltet') {
   const title = escapeHtml(badge?.title || 'Badge');
-  const img = badge?.image_url
-    ? `<div class="badge-icon badge-img"><img src="${escapeHtml(badge.image_url)}" alt=""></div>`
+  const imgUrl = badge?.image_url || '';
+  const img = imgUrl
+    ? `<div class="badge-icon badge-img"><img src="${escapeHtml(imgUrl)}" alt=""></div>`
     : `<div class="badge-icon">🏆</div>`;
-  return `<div class="badge-tile">${img}<div class="badge-name">${title}</div><div class="badge-sub">${escapeHtml(sub)}</div></div>`;
+  const onclick = `onclick="openRewardPreview('${escapeHtml(imgUrl)}','${escapeHtml(badge?.title || 'Badge')}','badge','')"`;
+  return `<div class="badge-tile" ${onclick}>${img}<div class="badge-name">${title}</div><div class="badge-sub">${escapeHtml(sub)}</div></div>`;
 }
 
 function renderTrophyCabinet(badges) {
@@ -4951,6 +4989,32 @@ window.renderReadyTeams = renderReadyTeams;
 
 
 <script>
+
+// ═══════ Belohnungs-Vorschau ═══════
+function openRewardPreview(imageUrl, title, type, description) {
+  const modal = document.getElementById('reward-preview-modal');
+  const wrap = document.getElementById('reward-preview-img-wrap');
+  const img = document.getElementById('reward-preview-img');
+  const titleEl = document.getElementById('reward-preview-title');
+  const typeEl = document.getElementById('reward-preview-type');
+  const descEl = document.getElementById('reward-preview-desc');
+  if (!modal) return;
+
+  img.src = imageUrl || '';
+  img.alt = title || '';
+  titleEl.textContent = title || 'Belohnung';
+  typeEl.textContent = type === 'banner' ? 'Profilbanner' : 'Achievement Badge';
+  descEl.textContent = description || '';
+
+  wrap.classList.toggle('banner', type === 'banner');
+  modal.classList.add('open');
+}
+function closeRewardPreview(e) {
+  if (e) e.stopPropagation();
+  const modal = document.getElementById('reward-preview-modal');
+  if (modal) modal.classList.remove('open');
+}
+
 function toggleBierpass(event){
   if(event) event.stopPropagation();
   const preview=document.getElementById('bierpass-preview');
@@ -5341,11 +5405,12 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
     const clickHandler = canClaim
       ? `onclick="claimBeerpassReward('${bierpassSafeHtml(String(r.id))}','${bierpassSafeHtml(r.reward_type||'')}')" style="cursor:pointer"`
       : '';
+    const previewClick = `onclick="openRewardPreview('${bierpassSafeHtml(img)}','${bierpassSafeHtml(r.title||'Belohnung')}','${bierpassSafeHtml(r.reward_type||'')}','${bierpassSafeHtml(r.description||'')}')"`;
     return `
       <div class="reward-row ${img ? 'with-thumb' : ''} ${isBanner ? 'banner-reward' : ''}">
         <div class="reward-points">${Number(r.required_points || 0)} BP</div>
-        ${img ? `<img class="reward-thumb ${isBanner ? 'banner-thumb' : ''}" src="${bierpassSafeHtml(img)}" alt="">` : ''}
-        <div>
+        ${img ? `<img class="reward-thumb ${isBanner ? 'banner-thumb' : ''}" src="${bierpassSafeHtml(img)}" alt="" ${previewClick} style="cursor:pointer">` : ''}
+        <div ${previewClick} style="cursor:pointer">
           <div class="reward-name">${bierpassSafeHtml(r.title || 'Belohnung')}</div>
           <div class="reward-type">${isBanner ? 'Profilbanner' : 'Achievement Badge'}</div>
         </div>
@@ -5434,6 +5499,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+
+<!-- Belohnungs-Vorschau-Modal -->
+<div class="reward-preview-modal" id="reward-preview-modal" onclick="closeRewardPreview(event)">
+  <div class="reward-preview-card" onclick="event.stopPropagation()">
+    <button class="reward-preview-close" onclick="closeRewardPreview(event)" aria-label="Schließen">×</button>
+    <div class="reward-preview-img-wrap" id="reward-preview-img-wrap">
+      <img class="reward-preview-img" id="reward-preview-img" src="" alt="">
+    </div>
+    <div class="reward-preview-title" id="reward-preview-title"></div>
+    <div class="reward-preview-type" id="reward-preview-type"></div>
+    <div class="reward-preview-desc" id="reward-preview-desc"></div>
+  </div>
+</div>
 </body>
 </html>
 
