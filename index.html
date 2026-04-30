@@ -806,6 +806,10 @@ document.addEventListener('click', (e) => {
   .ready-rule-bad { color: var(--red); font-size: 0.74rem; margin-top: 8px; }
   .hidden { display:none !important; }
   .hidden-force { display:none !important; }
+  body.profile-edit-modal-open #mobile-fab-wrap,
+  body.profile-edit-modal-open #nav-loggedin {
+    display: none !important;
+  }
   .login-required-card {
     background: var(--glass);
     backdrop-filter: blur(12px);
@@ -2663,11 +2667,28 @@ function updateResultSelectionUI(selectedResult) {
     }
   });
 }
+function setProfileEditChromeHidden(hidden) {
+  document.body.classList.toggle('profile-edit-modal-open', !!hidden);
+
+  if (hidden) {
+    document.getElementById('notif-panel')?.classList.remove('open');
+    return;
+  }
+
+  if (typeof updateNavAuth === 'function') updateNavAuth();
+  if (typeof updateMobileActionBar === 'function') updateMobileActionBar();
+  if (typeof updateFloatingButtonsVisibility === 'function') updateFloatingButtonsVisibility();
+}
+
 function openModal(name) {
   if (name === 'confirm') updateResultSelectionUI(getMyMatchResult());
   document.getElementById('modal-'+name).classList.remove('hidden');
+  if (name === 'profile-edit') setProfileEditChromeHidden(true);
 }
-function closeModal(name) { document.getElementById('modal-'+name).classList.add('hidden'); }
+function closeModal(name) {
+  document.getElementById('modal-'+name).classList.add('hidden');
+  if (name === 'profile-edit') setProfileEditChromeHidden(false);
+}
 
 // ─── AUTH MODAL ───────────────────────────────────────────────────────────────
 function openAuthModal() { openModal('auth'); }
