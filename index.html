@@ -5473,6 +5473,83 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 
+
+<style id="profile-selected-banner-fix-css">
+#active-profile-banner{background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important}
+.profile-header.has-profile-banner #active-profile-banner{display:block!important}
+.profile-header:not(.has-profile-banner) #active-profile-banner{display:none!important}
+.profile-banner-choice-card{background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important}
+</style>
+<script id="profile-selected-banner-fix-js">
+(()=>{
+  const STORAGE_PREFIX='selectedProfileBannerId:';
+  const SLEEP_BANNER='assets/banners/BannerBiermannSchlafend.jpg';
+  const header=()=>{const b=document.getElementById('active-profile-banner');return b?b.closest('.profile-header'):null};
+  const teamId=()=>window.currentProfileTeam?.id||window.myTeam?.id||null;
+  const key=id=>STORAGE_PREFIX+String(id||'local');
+  const read=id=>{try{return localStorage.getItem(key(id))||null}catch(e){return null}};
+  const write=(id,bannerId)=>{try{bannerId?localStorage.setItem(key(id),bannerId):localStorage.removeItem(key(id))}catch(e){}};
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isSleep=b=>{const s=String(`${b?.banner_key||''} ${b?.key||''} ${b?.title||''} ${b?.name||''} ${b?.id||''}`).toLowerCase();return s.includes('sleep')||s.includes('schlaf')};
+  const img=b=>{if(!b)return null;const u=b.image_url||b.url||b.src||b.path||'';return String(u).trim()|| (isSleep(b)?SLEEP_BANNER:null)};
+  const byId=(arr,id)=>Array.isArray(arr)&&id?arr.find(b=>String(b?.id)===String(id))||null:null;
+  const choose=(arr,active,id,allowLocal)=>byId(arr,active)?.id||(allowLocal?byId(arr,read(id))?.id:null)||null;
+  const apply=url=>{
+    const b=document.getElementById('active-profile-banner'), h=header(); if(!b)return;
+    url=String(url||'').trim();
+    if(!url){b.style.display='none';b.style.background='none';b.style.backgroundImage='none';b.dataset.hasProfileBanner='0';h&&h.classList.remove('has-profile-banner');return;}
+    b.style.display='block';b.style.backgroundImage=`url("${url.replace(/"/g,'%22')}")`;b.style.backgroundSize='cover';b.style.backgroundPosition='center center';b.style.backgroundRepeat='no-repeat';b.dataset.hasProfileBanner='1';h&&h.classList.add('has-profile-banner');
+  };
+
+  window.setProfileBannerVisual=url=>apply(url||null);
+
+  window.selectUnlockedBanner=bannerId=>{
+    window.pendingActiveBannerId=bannerId||null;
+    document.querySelectorAll('.profile-banner-choice-card').forEach(c=>c.classList.toggle('active',String(c.dataset.bannerId)===String(bannerId)));
+    const found=byId(window.currentUnlockedBanners||[],bannerId);
+    apply(img(found));
+    if(teamId()&&bannerId)write(teamId(),bannerId);
+  };
+
+  window.renderBannerPicker=(banners,activeBannerId)=>{
+    const body=document.getElementById('profile-banner-picker-body'); if(!body)return;
+    window.currentUnlockedBanners=Array.isArray(banners)?banners:[];
+    const selected=choose(window.currentUnlockedBanners,activeBannerId,teamId(),true);
+    window.pendingActiveBannerId=selected;
+    if(!window.currentUnlockedBanners.length){body.className='profile-edit-banner-empty';body.innerHTML='Noch keine Banner freigeschaltet';return;}
+    body.className='';
+    body.innerHTML=`<div class="profile-banner-choice-grid">${window.currentUnlockedBanners.map(b=>{const id=esc(b?.id||''), u=esc(img(b)||''), title=esc(b?.title||'Banner'), active=String(b?.id)===String(selected)?' active':'';return `<button type="button" class="profile-banner-choice-card${active}" data-banner-id="${id}" onclick="selectUnlockedBanner('${id}')" style="background-image:url('${u}')"><span>${title}</span></button>`}).join('')}</div>`;
+  };
+
+  window.loadProfileRewards=async(team,isMyProfile)=>{
+    if(!team?.id)return;
+    let badges=[], banners=[], activeBannerId=null;
+    try{const {data:tbRows,error:tbErr}=await supabase.from('team_badges').select('badge_id, unlocked_at').eq('team_id',team.id).order('unlocked_at',{ascending:false});
+      if(!tbErr&&tbRows?.length){const ids=tbRows.map(r=>r.badge_id).filter(Boolean);if(ids.length){const {data:badgeData}=await supabase.from('badges').select('id,title,image_url,rarity').in('id',ids);if(badgeData){const m={};badgeData.forEach(b=>m[b.id]=b);badges=tbRows.map(r=>m[r.badge_id]).filter(Boolean)}}}
+    }catch(e){console.warn('team_badges konnte nicht geladen werden',e)}
+    try{const {data:tnRows,error:tnErr}=await supabase.from('team_banners').select('banner_id, unlocked_at').eq('team_id',team.id).order('unlocked_at',{ascending:false});
+      if(!tnErr&&tnRows?.length){const ids=tnRows.map(r=>r.banner_id).filter(Boolean);if(ids.length){const {data:bannerData}=await supabase.from('profile_banners').select('id,title,image_url,banner_key').in('id',ids);if(bannerData){const m={};bannerData.forEach(b=>m[b.id]=b);banners=tnRows.map(r=>m[r.banner_id]).filter(Boolean)}}}
+    }catch(e){console.warn('team_banners konnte nicht geladen werden',e)}
+    try{const {data,error}=await supabase.from('team_profile_customization').select('active_banner_id').eq('team_id',team.id).maybeSingle();if(!error&&data)activeBannerId=data.active_banner_id}catch(e){console.warn('team_profile_customization konnte nicht geladen werden',e)}
+    const selected=choose(banners,activeBannerId,team.id,!!isMyProfile), active=byId(banners,selected);
+    window.currentUnlockedBanners=banners;window.pendingActiveBannerId=selected;
+    apply(img(active));
+    if(typeof renderTrophyCabinet==='function')renderTrophyCabinet(badges);
+    if(isMyProfile)window.renderBannerPicker(banners,selected);
+  };
+
+  window.saveSelectedProfileBannerToSupabase=async()=>{
+    const id=window.myTeam?.id, selected=window.pendingActiveBannerId||null; if(!id||!selected)return;
+    write(id,selected);
+    const {error}=await supabase.from('team_profile_customization').upsert({team_id:id,active_banner_id:selected,updated_at:new Date().toISOString()},{onConflict:'team_id'});
+    if(error){console.warn('Banner konnte nicht in Supabase gespeichert werden; lokale Auswahl bleibt aktiv.',error);showToast('Banner lokal gespeichert; Supabase-Speichern fehlgeschlagen.')}
+  };
+
+  window.applyProfileHeaderBanner=()=>{const found=byId(window.currentUnlockedBanners||[],read(teamId()));apply(img(found))};
+  window.selectProfileHeaderBanner=(kind,btn)=>{try{localStorage.removeItem('selectedProfileHeaderBanner')}catch(e){} if(btn)btn.classList.remove('active','pending')};
+  window.initProfileBannerPicker=()=>{const selected=choose(window.currentUnlockedBanners||[],window.pendingActiveBannerId,teamId(),true);window.pendingActiveBannerId=selected;apply(img(byId(window.currentUnlockedBanners||[],selected)));if(document.getElementById('profile-banner-picker-body'))window.renderBannerPicker(window.currentUnlockedBanners||[],selected)};
+})();
+</script>
 </body>
 </html>
 
