@@ -1118,6 +1118,92 @@ document.addEventListener('click', (e) => {
 .profile-banner-placeholder{height:92px;border-radius:16px;background:linear-gradient(90deg,rgba(5,12,58,.9),rgba(12,84,252,.75));margin-bottom:1rem;color:#fff;font-family:'Outfit',sans-serif;font-weight:900;display:flex;align-items:center;padding:1rem;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(12,84,252,.22)}
 .profile-banner-placeholder::after{content:'';position:absolute;right:-30px;top:-35px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.18)}
 .banner-edit-placeholder{margin-top:.85rem;padding:.85rem;border-radius:14px;background:rgba(12,84,252,.06);border:1px dashed rgba(12,84,252,.28);color:#5a72a8;font-size:.8rem;line-height:1.45}
+/* ── Bierpass Mobile-Optimierung: kein horizontales Scrollen, alles passt aufs Handy ── */
+@media(max-width:700px){
+  .bierpass-panel { height: auto; min-height: 480px; max-height: 85vh; }
+  .bierpass-scroll { padding: .8rem !important; overflow-x: hidden; }
+
+  /* Header: Bierpunkte-Banner geht über volle Breite UNTER dem Titel */
+  .bierpass-head {
+    flex-direction: column !important;
+    padding-right: 2.4rem !important;
+    gap: .6rem;
+  }
+  .bierpass-points {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    padding: .7rem 1rem !important;
+  }
+  .bierpass-points br { display: none; }
+  .bierpass-points span { font-size: .7rem !important; }
+
+  .bierpass-title { font-size: 1.4rem !important; }
+  .bierpass-sub { font-size: .8rem !important; }
+
+  /* Layout: Track und Content nebeneinander, aber schmaler */
+  .bierpass-layout {
+    grid-template-columns: 56px 1fr !important;
+    gap: .6rem !important;
+  }
+  .beer-track-card { padding: .7rem .35rem !important; }
+  .beer-track { width: 14px !important; height: 360px !important; }
+  .beer-track-marker { width: 24px !important; }
+  .beer-track-label { font-size: .62rem !important; }
+
+  /* Quests: 1 Spalte, kompakter */
+  .quest-list { grid-template-columns: 1fr !important; gap: .6rem !important; }
+  .quest-card { padding: .7rem !important; }
+  .quest-title { font-size: .9rem; }
+  .quest-desc { font-size: .72rem; }
+
+  /* Belohnungen: 3-Spalten Grid mit Bild + Text + Status */
+  .reward-row {
+    grid-template-columns: 50px 1fr !important;
+    grid-template-rows: auto auto;
+    gap: .5rem .65rem !important;
+    padding: .7rem !important;
+  }
+  .reward-row.with-thumb {
+    grid-template-columns: 50px 50px 1fr !important;
+  }
+  .reward-row.with-thumb.banner-reward {
+    grid-template-columns: 50px 64px 1fr !important;
+  }
+  .reward-thumb {
+    width: 50px !important;
+    height: 50px !important;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .reward-thumb.banner-thumb {
+    width: 64px !important;
+    height: 38px !important;
+    border-radius: 8px;
+  }
+  .reward-points { font-size: .85rem; }
+  .reward-name { font-size: .85rem; line-height: 1.2; }
+  .reward-type { font-size: .68rem; }
+
+  /* Status / Abholen / Coming-soon Button: über volle Breite UNTER dem Inhalt */
+  .reward-row .reward-status,
+  .reward-row.with-thumb .reward-status,
+  .reward-row.with-thumb.banner-reward .reward-status {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    text-align: center !important;
+    justify-self: stretch !important;
+    margin-top: .2rem !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box;
+  }
+}
+
 @media(max-width:700px){
   .bierpass-panel{height:520px}
   .bierpass-scroll{padding:.9rem}
