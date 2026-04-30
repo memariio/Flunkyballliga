@@ -1226,30 +1226,50 @@ document.addEventListener('click', (e) => {
   line-height: 1.45;
 }
 
-/* Badge mit blauem Hintergrund (für PNGs ohne transparentem Hintergrund) */
-.badge-tile .badge-img,
+/* Badge: blauer Hintergrund + multiply-Blendmode entfernt weiße Bereiche im PNG */
+.badge-tile .badge-img {
+  background: linear-gradient(135deg, #0c54fc, #5a9af4);
+  overflow: hidden;
+}
+.badge-tile .badge-img img {
+  mix-blend-mode: multiply;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* Reward-Thumb (Bierpass-Liste) für Badges genauso */
 .reward-thumb:not(.banner-thumb) {
   background: linear-gradient(135deg, #0c54fc, #5a9af4);
+  mix-blend-mode: normal;
+  position: relative;
+  overflow: hidden;
+  padding: 4px;
 }
-.badge-tile .badge-img img,
-.reward-thumb:not(.banner-thumb) {
-  mix-blend-mode: multiply;
-}
+
 /* Klickbar */
 .badge-tile, .reward-row {
   cursor: pointer;
 }
 .badge-tile:hover { transform: translateY(-2px); transition: transform .15s ease; }
 @media(max-width:700px){
-  .bierpass-panel{height:520px}
-  .bierpass-scroll{padding:.9rem}
-  .bierpass-head{flex-direction:column}
-  .bierpass-layout{grid-template-columns:64px 1fr;gap:.75rem}
-  .beer-track-card{padding:.8rem .45rem}
-  .beer-track{height:520px;width:16px}
-  .beer-track-marker{width:28px}
-  .quest-list{grid-template-columns:1fr}
-  .reward-row{grid-template-columns:55px 1fr}
+  .bierpass-panel { height: auto; min-height: 480px; max-height: 85vh; overflow: hidden; }
+  .bierpass-scroll { padding: .85rem; overflow-x: hidden !important; max-width: 100%; box-sizing: border-box; }
+  .bierpass-scroll * { max-width: 100%; box-sizing: border-box; }
+  .bierpass-head { flex-direction: column; padding-right: 2.4rem; }
+
+  .bierpass-layout { grid-template-columns: 56px minmax(0, 1fr); gap: .65rem; }
+  .beer-track-card { padding: .8rem .35rem; }
+  .beer-track { height: 420px; width: 14px; }
+  .beer-track-marker { width: 24px; }
+  .quest-list { grid-template-columns: 1fr; }
+
+  /* Reward-Row: Status-Button immer in eigener Zeile, Banner-Thumb feste Breite */
+  .reward-row { grid-template-columns: 50px minmax(0, 1fr); grid-template-rows: auto auto; gap: .5rem .65rem; padding: .7rem; }
+  .reward-row.with-thumb { grid-template-columns: 48px 56px minmax(0, 1fr); }
+  .reward-row.with-thumb.banner-reward { grid-template-columns: 48px 70px minmax(0, 1fr); }
+  .reward-thumb { width: 56px !important; height: 56px !important; flex-shrink: 0; }
+  .reward-thumb.banner-thumb { width: 70px !important; height: 42px !important; flex-shrink: 0; }
+  .reward-row .reward-status { grid-column: 1 / -1 !important; width: 100%; text-align: center; margin-top: .25rem; }
   .reward-status{
   border:none;
   border-radius:10px;
@@ -3415,8 +3435,8 @@ function renderBadgeTile(badge, sub = 'Freigeschaltet') {
   const img = imgUrl
     ? `<div class="badge-icon badge-img"><img src="${escapeHtml(imgUrl)}" alt=""></div>`
     : `<div class="badge-icon">🏆</div>`;
-  const onclick = `onclick="openRewardPreview('${escapeHtml(imgUrl)}','${escapeHtml(badge?.title || 'Badge')}','badge','')"`;
-  return `<div class="badge-tile" ${onclick}>${img}<div class="badge-name">${title}</div><div class="badge-sub">${escapeHtml(sub)}</div></div>`;
+  const data = `data-preview-img="${escapeHtml(imgUrl)}" data-preview-title="${escapeHtml(badge?.title || 'Badge')}" data-preview-type="badge" data-preview-desc=""`;
+  return `<div class="badge-tile reward-clickable" ${data}>${img}<div class="badge-name">${title}</div><div class="badge-sub">${escapeHtml(sub)}</div></div>`;
 }
 
 function renderTrophyCabinet(badges) {
@@ -4991,6 +5011,23 @@ window.renderReadyTeams = renderReadyTeams;
 <script>
 
 // ═══════ Belohnungs-Vorschau ═══════
+// Event-Delegation: funktioniert auf Desktop UND Mobile
+(function setupRewardClickDelegation() {
+  if (window.__rewardClickSetup) return;
+  window.__rewardClickSetup = true;
+  document.addEventListener('click', function(e) {
+    const el = e.target.closest('.reward-clickable');
+    if (!el) return;
+    if (e.target.closest('.reward-status')) return; // Abholen-Button nicht abfangen
+    openRewardPreview(
+      el.dataset.previewImg || '',
+      el.dataset.previewTitle || 'Belohnung',
+      el.dataset.previewType || '',
+      el.dataset.previewDesc || ''
+    );
+  }, false);
+})();
+
 function openRewardPreview(imageUrl, title, type, description) {
   const modal = document.getElementById('reward-preview-modal');
   const wrap = document.getElementById('reward-preview-img-wrap');
@@ -5405,12 +5442,12 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
     const clickHandler = canClaim
       ? `onclick="claimBeerpassReward('${bierpassSafeHtml(String(r.id))}','${bierpassSafeHtml(r.reward_type||'')}')" style="cursor:pointer"`
       : '';
-    const previewClick = `onclick="openRewardPreview('${bierpassSafeHtml(img)}','${bierpassSafeHtml(r.title||'Belohnung')}','${bierpassSafeHtml(r.reward_type||'')}','${bierpassSafeHtml(r.description||'')}')"`;
+    const previewData = `data-preview-img="${bierpassSafeHtml(img)}" data-preview-title="${bierpassSafeHtml(r.title||'Belohnung')}" data-preview-type="${bierpassSafeHtml(r.reward_type||'')}" data-preview-desc="${bierpassSafeHtml(r.description||'')}"`;
     return `
-      <div class="reward-row ${img ? 'with-thumb' : ''} ${isBanner ? 'banner-reward' : ''}">
+      <div class="reward-row reward-clickable ${img ? 'with-thumb' : ''} ${isBanner ? 'banner-reward' : ''}" ${previewData}>
         <div class="reward-points">${Number(r.required_points || 0)} BP</div>
-        ${img ? `<img class="reward-thumb ${isBanner ? 'banner-thumb' : ''}" src="${bierpassSafeHtml(img)}" alt="" ${previewClick} style="cursor:pointer">` : ''}
-        <div ${previewClick} style="cursor:pointer">
+        ${img ? `<img class="reward-thumb ${isBanner ? 'banner-thumb' : ''}" src="${bierpassSafeHtml(img)}" alt="">` : ''}
+        <div>
           <div class="reward-name">${bierpassSafeHtml(r.title || 'Belohnung')}</div>
           <div class="reward-type">${isBanner ? 'Profilbanner' : 'Achievement Badge'}</div>
         </div>
