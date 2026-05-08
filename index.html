@@ -390,7 +390,7 @@ document.addEventListener('click', (e) => {
   }
   .liga-tab:hover { background: rgba(12,84,252,0.08); }
   .liga-tab.active-tab { background: #0c54fc; color: #fff; box-shadow: 0 4px 14px rgba(12,84,252,0.35); }
-  .game-list { display: flex; flex-direction: column; gap: 8px; }
+  .game-list { display: flex; flex-direction: column; gap: 12px; }
   .game-row {
     background: var(--glass);
     backdrop-filter: blur(12px);
@@ -653,7 +653,7 @@ document.addEventListener('click', (e) => {
   .matches-dropdown summary::-webkit-details-marker { display: none; }
   .matches-dropdown summary::after { content: '▾'; float: right; color: var(--gray); }
   .matches-dropdown[open] summary::after { content: '▴'; }
-  .matches-dropdown-body { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 8px; }
+  .matches-dropdown-body { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 12px; }
   .stat-alert { color: var(--orange); }
   .fairness-high { color: #16a34a; }
   .fairness-medium { color: #ca8a04; }
@@ -838,7 +838,99 @@ document.addEventListener('click', (e) => {
   }
   .login-required-title { font-size: 1.35rem; font-weight: 800; color: var(--white); margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif; }
   .login-required-sub { color: var(--gray); font-size: 0.92rem; margin-bottom: 1.25rem; line-height: 1.6; }
-  .active-matches-list { display:flex; flex-direction:column; gap:10px; }
+  .active-matches-list { display:flex; flex-direction:column; gap:12px; }
+  /* ── NEW MATCH CARD DESIGN ── */
+  .match-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 4px 20px rgba(12,84,252,0.08), 0 1px 4px rgba(12,84,252,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    transition: 0.22s;
+    border: 1px solid rgba(12,84,252,0.07);
+    margin-bottom: 0;
+    width: 100%;
+  }
+  .match-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(12,84,252,0.14); }
+  .match-card-date {
+    font-size: 0.72rem; font-weight: 700; color: #9ab0d8;
+    letter-spacing: 0.04em; align-self: center;
+  }
+  .match-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .match-card-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .match-card-team-logo {
+    width: 72px; height: 72px; border-radius: 14px;
+    object-fit: cover; border: 1.5px solid rgba(12,84,252,0.1);
+    background: #f0f4ff;
+    flex-shrink: 0;
+  }
+  .match-card-team-logo-placeholder {
+    width: 72px; height: 72px; border-radius: 14px;
+    background: #f0f4ff;
+    border: 1.5px solid rgba(12,84,252,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+  .match-card-team-name {
+    font-size: 0.78rem; font-weight: 700; color: #0d1e9c;
+    text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 90px;
+  }
+  .match-card-scores {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .match-card-score-box {
+    width: 54px; height: 72px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 2.2rem; font-weight: 700; color: #fff;
+  }
+  .match-card-score-box.score-a { background: #2155db; }
+  .match-card-score-box.score-b { background: #7aa8f0; }
+  .match-card-score-box.score-winner { background: #2155db; }
+  .match-card-score-box.score-loser { background: #7aa8f0; }
+  .match-card-timer-box {
+    width: 112px; height: 72px; border-radius: 12px;
+    background: #2155db;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 2px;
+    flex-shrink: 0;
+  }
+  .match-card-timer-label {
+    font-size: 0.58rem; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  }
+  .match-card-timer-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.35rem; font-weight: 700; color: #fff;
+  }
+  .match-card-liga {
+    align-self: center;
+    margin-top: 0;
+  }
+  .match-card-status-red .match-card-score-box.score-a,
+  .match-card-status-red .match-card-score-box.score-b { background: rgba(224,32,32,0.18); }
+
+  /* Old active-match-row kept for fallback */
   .active-match-row {
     background: var(--glass);
     backdrop-filter: blur(12px);
@@ -910,6 +1002,11 @@ document.addEventListener('click', (e) => {
     .ready-grid { grid-template-columns: 1fr; }
     .active-match-row { grid-template-columns: 1fr; gap: 0.75rem; }
     .active-match-timer { text-align: left; display: flex; align-items: center; justify-content: space-between; }
+    .match-card-team-logo, .match-card-team-logo-placeholder { width: 60px; height: 60px; }
+    .match-card-score-box { width: 46px; height: 60px; font-size: 1.8rem; }
+    .match-card-timer-box { width: 96px; height: 60px; }
+    .match-card-timer-val { font-size: 1.1rem; }
+    .match-card-team-name { font-size: 0.7rem; max-width: 74px; }
     .liga-tabs, .lb-filter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .liga-tabs::-webkit-scrollbar, .lb-filter::-webkit-scrollbar { display: none; }
     .liga-tab { flex: 0 0 auto; white-space: nowrap; }
@@ -2492,41 +2589,7 @@ body.admin-mode-active .admin-badge-grant-btn { display:block; }
                   <div class="reward-status locked">Gesperrt</div>
                 </div>
 
-                <div class="reward-row coming-soon">
-                  <div class="reward-points">200 BP</div>
-                  <div>
-                    <div class="reward-name">Neue Belohnung</div>
-                    <div class="reward-type">Badge · bald verfügbar</div>
-                  </div>
-                  <div class="reward-status coming-soon-status">Coming soon</div>
-                </div>
 
-                <div class="reward-row coming-soon">
-                  <div class="reward-points">300 BP</div>
-                  <div>
-                    <div class="reward-name">Neue Belohnung</div>
-                    <div class="reward-type">Profilbanner · bald verfügbar</div>
-                  </div>
-                  <div class="reward-status coming-soon-status">Coming soon</div>
-                </div>
-
-                <div class="reward-row coming-soon">
-                  <div class="reward-points">700 BP</div>
-                  <div>
-                    <div class="reward-name">Neue Belohnung</div>
-                    <div class="reward-type">Badge · bald verfügbar</div>
-                  </div>
-                  <div class="reward-status coming-soon-status">Coming soon</div>
-                </div>
-
-                <div class="reward-row coming-soon">
-                  <div class="reward-points">1500 BP</div>
-                  <div>
-                    <div class="reward-name">Finale Belohnung</div>
-                    <div class="reward-type">Legendär · bald verfügbar</div>
-                  </div>
-                  <div class="reward-status coming-soon-status">Coming soon</div>
-                </div>
               </div>
 
             </div>
@@ -3084,7 +3147,7 @@ function startActiveMatchesTimers() {
   const renderTick = () => {
     allActiveMatches.forEach(match => {
       const remaining = getMatchRemainingSeconds(match);
-      const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"]`);
+      const el = document.querySelector(`.active-match-timer-value[data-match-id="${match.id}"], .match-card-timer-val[data-match-id="${match.id}"]`);
       if (el) el.textContent = formatTimer(remaining);
       if (remaining <= 0) expireMatchIfNeeded(match);
     });
@@ -3581,16 +3644,32 @@ async function loadActiveMatches() {
   count.textContent = `${data.length} Matches`;
   list.innerHTML = data.map(m => {
     const secs = getMatchRemainingSeconds(m);
+    const logoA = m.team_a?.avatar_url
+      ? `<img class="match-card-team-logo" src="${m.team_a.avatar_url}" alt="">`
+      : `<div class="match-card-team-logo-placeholder">${m.team_a?.emoji || '⚽'}</div>`;
+    const logoB = m.team_b?.avatar_url
+      ? `<img class="match-card-team-logo" src="${m.team_b.avatar_url}" alt="">`
+      : `<div class="match-card-team-logo-placeholder">${m.team_b?.emoji || '⚽'}</div>`;
     return `
-      <div class="active-match-row">
-        <div class="active-match-main">
-          <div class="active-match-title">${m.team_a?.name || '?'} <span style="color:var(--gray)">vs</span> ${m.team_b?.name || '?'}</div>
-          <div class="active-match-meta">${ligaBadge(m.liga)} ·  ${m.ort || 'offen'} ·  ${m.uhrzeit || 'offen'} Uhr</div>
+      <div class="match-card">
+        <div class="match-card-date">${m.uhrzeit ? m.uhrzeit + ' Uhr' : formatDate(m.created_at)}</div>
+        <div class="match-card-body">
+          <div class="match-card-team">
+            ${logoA}
+            <div class="match-card-team-name">${m.team_a?.name || '?'}</div>
+          </div>
+          <div class="match-card-scores">
+            <div class="match-card-timer-box">
+              <div class="match-card-timer-label">Verbleibend</div>
+              <div class="match-card-timer-val" data-match-id="${m.id}">${formatTimer(secs)}</div>
+            </div>
+          </div>
+          <div class="match-card-team">
+            ${logoB}
+            <div class="match-card-team-name">${m.team_b?.name || '?'}</div>
+          </div>
         </div>
-        <div class="active-match-timer">
-          <div class="active-match-timer-label">Verbleibend</div>
-          <div class="active-match-timer-value" data-match-id="${m.id}">${formatTimer(secs)}</div>
-        </div>
+        <div class="match-card-liga">${ligaBadge(m.liga)}${m.ort ? ' · ' + m.ort : ''}</div>
       </div>
     `;
   }).join('');
@@ -3601,7 +3680,7 @@ async function loadActiveMatches() {
 async function loadGames(filter) {
   let query = supabase
     .from('games')
-    .select('*, team_a:team_a_id(name,emoji), team_b:team_b_id(name,emoji)')
+    .select('*, team_a:team_a_id(name,emoji,avatar_url), team_b:team_b_id(name,emoji,avatar_url)')
     .order('created_at', { ascending: false })
     .limit(20);
   if (filter !== 'alle') query = query.eq('liga', filter);
@@ -3623,17 +3702,35 @@ function renderGamesList(games) {
   const renderSingleGame = (g) => {
     const isMe = myTeam && (g.team_a_id === myTeam.id || g.team_b_id === myTeam.id);
     const cls = g.status === 'deadline' || g.status === 'no_show' ? 'status-red' : g.status === 'conflict' ? 'status-orange' : '';
-    const label = g.label || (g.score_a !== null ? `${g.score_a} : ${g.score_b}` : '–');
+    const hasScore = g.score_a !== null && g.score_b !== null;
+    const scoreA = hasScore ? g.score_a : null;
+    const scoreB = hasScore ? g.score_b : null;
+    const logoA = g.team_a?.avatar_url
+      ? `<img class="match-card-team-logo" src="${g.team_a.avatar_url}" alt="" onclick="openTeamProfile('${g.team_a_id}')" style="cursor:pointer">`
+      : `<div class="match-card-team-logo-placeholder" onclick="openTeamProfile('${g.team_a_id}')" style="cursor:pointer">${g.team_a?.emoji || '⚽'}</div>`;
+    const logoB = g.team_b?.avatar_url
+      ? `<img class="match-card-team-logo" src="${g.team_b.avatar_url}" alt="" onclick="openTeamProfile('${g.team_b_id}')" style="cursor:pointer">`
+      : `<div class="match-card-team-logo-placeholder" onclick="openTeamProfile('${g.team_b_id}')" style="cursor:pointer">${g.team_b?.emoji || '⚽'}</div>`;
+    const winA = hasScore && scoreA > scoreB;
+    const winB = hasScore && scoreB > scoreA;
+    const scoreHtml = hasScore
+      ? `<div class="match-card-score-box ${winA ? 'score-winner' : 'score-loser'} ${cls}">${scoreA}</div><div class="match-card-score-box ${winB ? 'score-winner' : 'score-loser'} ${cls}">${scoreB}</div>`
+      : `<div class="match-card-score-box score-a" style="background:#9ab0d8;font-size:1.4rem">–</div><div class="match-card-score-box score-b" style="background:#b8cce8;font-size:1.4rem">–</div>`;
     return `
-      <div class="game-row${isMe ? ' me' : ''}">
-        <div class="game-teams">
-          <span class="game-team clickable-name" onclick="openTeamProfile('${g.team_a_id}')">${g.team_a?.name || '?'}</span>
-          <span class="game-vs">vs</span>
-          <span class="game-team clickable-name" onclick="openTeamProfile('${g.team_b_id}')">${g.team_b?.name || '?'}</span>
+      <div class="match-card${isMe ? ' me' : ''}">
+        <div class="match-card-date">${formatDate(g.created_at)}</div>
+        <div class="match-card-body">
+          <div class="match-card-team">
+            ${logoA}
+            <div class="match-card-team-name clickable-name" onclick="openTeamProfile('${g.team_a_id}')">${g.team_a?.name || '?'}</div>
+          </div>
+          <div class="match-card-scores">${scoreHtml}</div>
+          <div class="match-card-team">
+            ${logoB}
+            <div class="match-card-team-name clickable-name" onclick="openTeamProfile('${g.team_b_id}')">${g.team_b?.name || '?'}</div>
+          </div>
         </div>
-        ${ligaBadge(g.liga)}
-        <div class="game-score ${cls}">${label}</div>
-        <div class="game-date">${formatDate(g.created_at)}</div>
+        <div class="match-card-liga">${ligaBadge(g.liga)}</div>
       </div>
     `;
   };
@@ -4306,7 +4403,7 @@ async function loadProfile(team) {
 
   const { data: games } = await supabase
     .from('games')
-    .select('*, team_a:team_a_id(name), team_b:team_b_id(name)')
+    .select('*, team_a:team_a_id(name,emoji,avatar_url), team_b:team_b_id(name,emoji,avatar_url)')
     .or(`team_a_id.eq.${team.id},team_b_id.eq.${team.id}`)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -4332,17 +4429,35 @@ async function loadProfile(team) {
 
 function renderGameRow(g, teamId) {
   const cls = g.status === 'deadline' || g.status === 'no_show' ? 'status-red' : g.status === 'conflict' ? 'status-orange' : '';
-  const label = g.label || (g.score_a !== null ? `${g.score_a} : ${g.score_b}` : '–');
+  const hasScore = g.score_a !== null && g.score_b !== null;
+  const scoreA = hasScore ? g.score_a : null;
+  const scoreB = hasScore ? g.score_b : null;
+  const logoA = g.team_a?.avatar_url
+    ? `<img class="match-card-team-logo" src="${g.team_a.avatar_url}" alt="">`
+    : `<div class="match-card-team-logo-placeholder">${g.team_a?.emoji || '⚽'}</div>`;
+  const logoB = g.team_b?.avatar_url
+    ? `<img class="match-card-team-logo" src="${g.team_b.avatar_url}" alt="">`
+    : `<div class="match-card-team-logo-placeholder">${g.team_b?.emoji || '⚽'}</div>`;
+  const winA = hasScore && scoreA > scoreB;
+  const winB = hasScore && scoreB > scoreA;
+  const scoreHtml = hasScore
+    ? `<div class="match-card-score-box ${winA ? 'score-winner' : 'score-loser'} ${cls}">${scoreA}</div><div class="match-card-score-box ${winB ? 'score-winner' : 'score-loser'} ${cls}">${scoreB}</div>`
+    : `<div class="match-card-score-box score-a" style="background:#9ab0d8;font-size:1.4rem">–</div><div class="match-card-score-box score-b" style="background:#b8cce8;font-size:1.4rem">–</div>`;
   return `
-    <div class="game-row">
-      <div class="game-teams">
-        <span class="game-team">${g.team_a?.name||'?'}</span>
-        <span class="game-vs">vs</span>
-        <span class="game-team">${g.team_b?.name||'?'}</span>
+    <div class="match-card">
+      <div class="match-card-date">${formatDate(g.created_at)}</div>
+      <div class="match-card-body">
+        <div class="match-card-team">
+          ${logoA}
+          <div class="match-card-team-name">${g.team_a?.name || '?'}</div>
+        </div>
+        <div class="match-card-scores">${scoreHtml}</div>
+        <div class="match-card-team">
+          ${logoB}
+          <div class="match-card-team-name">${g.team_b?.name || '?'}</div>
+        </div>
       </div>
-      ${ligaBadge(g.liga)}
-      <div class="game-score ${cls}">${label}</div>
-      <div class="game-date">${formatDate(g.created_at)}</div>
+      <div class="match-card-liga">${ligaBadge(g.liga)}</div>
     </div>
   `;
 }
