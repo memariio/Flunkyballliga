@@ -840,15 +840,16 @@ document.addEventListener('click', (e) => {
   .login-required-sub { color: var(--gray); font-size: 0.92rem; margin-bottom: 1.25rem; line-height: 1.6; }
   .active-matches-list { display:flex; flex-direction:column; gap:12px; }
   /* ── NEW MATCH CARD DESIGN ── */
+  /* SIZE TOKEN: all interactive squares share this size */
   .match-card {
     background: #ffffff;
-    border-radius: 18px;
-    padding: 1.1rem 1.2rem;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
     box-shadow: 0 4px 20px rgba(12,84,252,0.08), 0 1px 4px rgba(12,84,252,0.05);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.55rem;
     transition: 0.22s;
     border: 1px solid rgba(12,84,252,0.07);
     margin-bottom: 0;
@@ -861,67 +862,69 @@ document.addEventListener('click', (e) => {
   }
   .match-card-body {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 5px;
     width: 100%;
   }
   .match-card-team {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
     flex: 1;
     min-width: 0;
   }
   .match-card-team-logo {
-    width: 72px; height: 72px; border-radius: 14px;
-    object-fit: cover; border: 1.5px solid rgba(12,84,252,0.1);
+    width: 86px; height: 86px; border-radius: 6px;
+    object-fit: cover; border: none;
     background: #f0f4ff;
     flex-shrink: 0;
+    display: block;
   }
   .match-card-team-logo-placeholder {
-    width: 72px; height: 72px; border-radius: 14px;
+    width: 86px; height: 86px; border-radius: 6px;
     background: #f0f4ff;
-    border: 1.5px solid rgba(12,84,252,0.1);
+    border: none;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.8rem;
+    font-size: 2rem;
     flex-shrink: 0;
   }
   .match-card-team-name {
     font-size: 0.78rem; font-weight: 700; color: #0d1e9c;
     text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 90px;
+    max-width: 100px;
   }
   .match-card-scores {
     display: flex;
     gap: 4px;
-    align-items: center;
+    align-items: stretch;
     flex-shrink: 0;
   }
   .match-card-score-box {
-    width: 54px; height: 72px; border-radius: 12px;
+    width: 86px; height: 86px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Space Mono', monospace;
-    font-size: 2.2rem; font-weight: 700; color: #fff;
+    font-size: 2.8rem; font-weight: 700; color: #fff;
+    flex-shrink: 0;
   }
   .match-card-score-box.score-a { background: #2155db; }
   .match-card-score-box.score-b { background: #7aa8f0; }
   .match-card-score-box.score-winner { background: #2155db; }
   .match-card-score-box.score-loser { background: #7aa8f0; }
   .match-card-timer-box {
-    width: 112px; height: 72px; border-radius: 12px;
+    width: 177px; height: 86px; border-radius: 6px;
     background: #2155db;
     display: flex; align-items: center; justify-content: center;
-    flex-direction: column; gap: 2px;
+    flex-direction: column; gap: 3px;
     flex-shrink: 0;
   }
   .match-card-timer-label {
-    font-size: 0.58rem; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+    font-size: 0.56rem; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
   }
   .match-card-timer-val {
     font-family: 'Space Mono', monospace;
-    font-size: 1.35rem; font-weight: 700; color: #fff;
+    font-size: 1.5rem; font-weight: 700; color: #fff;
   }
   .match-card-liga {
     align-self: center;
@@ -1002,11 +1005,12 @@ document.addEventListener('click', (e) => {
     .ready-grid { grid-template-columns: 1fr; }
     .active-match-row { grid-template-columns: 1fr; gap: 0.75rem; }
     .active-match-timer { text-align: left; display: flex; align-items: center; justify-content: space-between; }
-    .match-card-team-logo, .match-card-team-logo-placeholder { width: 60px; height: 60px; }
-    .match-card-score-box { width: 46px; height: 60px; font-size: 1.8rem; }
-    .match-card-timer-box { width: 96px; height: 60px; }
+    .match-card-team-logo, .match-card-team-logo-placeholder { width: 62px; height: 62px; border-radius: 5px; }
+    .match-card-score-box { width: 62px; height: 62px; font-size: 2rem; border-radius: 5px; }
+    .match-card-timer-box { width: 128px; height: 62px; border-radius: 5px; }
     .match-card-timer-val { font-size: 1.1rem; }
-    .match-card-team-name { font-size: 0.7rem; max-width: 74px; }
+    .match-card-team-name { font-size: 0.68rem; max-width: 72px; }
+    .match-card { border-radius: 8px; padding: 0.8rem 0.85rem; }
     .liga-tabs, .lb-filter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .liga-tabs::-webkit-scrollbar, .lb-filter::-webkit-scrollbar { display: none; }
     .liga-tab { flex: 0 0 auto; white-space: nowrap; }
