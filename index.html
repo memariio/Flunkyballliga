@@ -6920,13 +6920,6 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
     { required_points:125, title:'Schlafender Biermann', reward_type:'banner', profile_banners:{ image_url:'assets/banners/BannerBiermannSchlafend.jpg' } }
   ];
 
-  const comingSoon = [
-    { required_points:200, title:'Neue Belohnung', type:'Badge · bald verfügbar' },
-    { required_points:300, title:'Neue Belohnung', type:'Profilbanner · bald verfügbar' },
-    { required_points:700, title:'Neue Belohnung', type:'Badge · bald verfügbar' },
-    { required_points:1500, title:'Finale Belohnung', type:'Legendär · bald verfügbar' }
-  ];
-
   const rewardHtml = baseRewards.map(r => {
     const isClaimed = claimed.has(String(r.id));
     const canClaim = !!r.id && Number(beerPoints || 0) >= Number(r.required_points || 0) && !isClaimed;
@@ -6951,18 +6944,7 @@ function renderBierpassRewards(rewards, claimedRows, beerPoints){
     `;
   }).join('');
 
-  const comingHtml = comingSoon.map(r => `
-    <div class="reward-row coming-soon">
-      <div class="reward-points">${r.required_points} BP</div>
-      <div>
-        <div class="reward-name">${r.title}</div>
-        <div class="reward-type">${r.type}</div>
-      </div>
-      <div class="reward-status coming-soon-status">Coming soon</div>
-    </div>
-  `).join('');
-
-  list.innerHTML = rewardHtml + comingHtml;
+  list.innerHTML = rewardHtml;
 }
 
 async function claimQuestReward(progressId){
